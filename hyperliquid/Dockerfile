@@ -14,7 +14,7 @@ WORKDIR /home/$USERNAME
 # Set visor config and gossip config based on CHAIN
 RUN if [ "$CHAIN" = "Mainnet" ]; then \
         echo "{\"chain\": \"Mainnet\"}" > /home/$USERNAME/visor.json && \
-        echo '{ "root_node_ips": [{"Ip": "35.213.122.164"}, {"Ip": "35.213.89.139"}], "try_new_peers": false, "chain": "Mainnet" }' > /home/$USERNAME/override_gossip_config.json ; \
+        echo '{ "root_node_ips": [{"Ip": "35.213.122.164"}, {"Ip": "35.213.89.139"}], "try_new_peers": true, "chain": "Mainnet" }' > /home/$USERNAME/override_gossip_config.json ; \
     elif [ "$CHAIN" = "Testnet" ]; then \
         echo "{\"chain\": \"Testnet\"}" > /home/$USERNAME/visor.json ; \
         # Note: No override_gossip_config.json created for Testnet by default.
@@ -46,4 +46,3 @@ RUN echo '#!/bin/bash' > /home/$USERNAME/entrypoint.sh && \
     chmod +x /home/$USERNAME/entrypoint.sh
 # Expose gossip ports
 EXPOSE 4000-4010 3001
-ENTRYPOINT ["/home/hluser/entrypoint.sh"]

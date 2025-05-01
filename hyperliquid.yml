@@ -1,39 +1,72 @@
 version: '3.4'
 
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
 services:
   node:
-    restart: unless-stopped
     build:
       context: ./hyperliquid
-      args:
-        - USERNAME=hluser
-        - USER_UID=${LOCAL_UID:-10000}
-        - CHAIN=${CHAIN:-Mainnet}
+    image: hyperliquid:local
+    pull_policy: never
+    user: hluser
+    restart: unless-stopped
+    stop_grace_period: 5m
     environment:
-      - CHAIN=${CHAIN:-Mainnet}
+      - DAEMON_VERSION=${HL_NODE_VERSION:-latest}
+      - EXTRA_FLAGS=${EXTRA_FLAGS:-}
+      - NETWORK=${CHAIN:-Mainnet}
+      - MONIKER=${MONIKER:-hyperliquid}
+      - ETH_RPC_PORT=${ETH_RPC_PORT:-3001}
+      - GOSSIP_PORT_1=${GOSSIP_PORT_1:-4001}
+      - GOSSIP_PORT_2=${GOSSIP_PORT_2:-4002}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    ports:
+      - ${ETH_RPC_PORT:-3001}:3001/tcp
+      - ${GOSSIP_PORT_1:-4001}:4001/tcp
+      - ${GOSSIP_PORT_2:-4002}:4002/tcp
+    <<: *logging
     volumes:
-      - ${DATA_DIR:-./hyperliquid-data}:/home/hluser/hl/data
-    stop_grace_period: 1m
-    networks:
-      - default
+      - hl-data:/home/hluser/hl/data
+    entrypoint:
+      - /home/hluser/hl-visor
+      - run-non-validator
+      - --replica-cmds-style
+      - recent-actions
+      - --serve-eth-rpc
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${RPC_HOST:-hyperliquid}.service=${RPC_HOST:-hyperliquid}
+      - traefik.http.routers.${RPC_HOST:-hyperliquid}.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST:-hyperliquid}.rule=Host(`${RPC_HOST:-hyperliquid}.${DOMAIN:-local}`)
+      - traefik.http.routers.${RPC_HOST:-hyperliquid}.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST:-hyperliquid}.loadbalancer.server.port=${ETH_RPC_PORT:-3001}
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=3001
+      - metrics.instance=hyperliquid
+      - metrics.network=${CHAIN:-Mainnet}
 
   pruner:
     restart: unless-stopped
     build:
       context: ./hyperliquid/pruner
-      args:
-        - USERNAME=hluser
-        - USER_UID=${LOCAL_UID:-10000}
-    environment:
-      - RETENTION_HOURS=${PRUNE_RETAIN_DAYS:-7}
     volumes:
-      - ${DATA_DIR:-./hyperliquid-data}:/home/hluser/hl/data
-    networks:
-      - default
-    # Only run the pruner if pruning is enabled
-    profiles:
-      - ${ENABLE_PRUNING:-true}
+      - hl-data:/home/hluser/hl/data
+    image: hyperliquid-pruner:local
+    pull_policy: never
+    # Running as root is required for cron to access /var/run/crond.pid
+    user: root
+    stop_grace_period: 2m
+    environment:
+      - RETENTION_HOURS=${PRUNE_RETAIN_HOURS:-168}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    <<: *logging
 
-networks:
-  default:
-    name: hyperliquid
+volumes:
+  hl-data:
