@@ -12,6 +12,8 @@ services:
   node:
     build:
       context: ./hyperliquid
+      args: # Pass CHAIN during build
+        - CHAIN=${CHAIN:-Mainnet}
     image: hyperliquid:local
     pull_policy: never
     user: hluser
@@ -22,14 +24,15 @@ services:
       - EXTRA_FLAGS=${EXTRA_FLAGS:-}
       - NETWORK=${CHAIN:-Mainnet}
       - MONIKER=${MONIKER:-hyperliquid}
-      - ETH_RPC_PORT=${ETH_RPC_PORT:-3001}
-      - GOSSIP_PORT_1=${GOSSIP_PORT_1:-4001}
-      - GOSSIP_PORT_2=${GOSSIP_PORT_2:-4002}
+      - ETH_RPC_PORT=${ETH_RPC_PORT:-3001} # Internal port reference
+      - GOSSIP_PORT_1=${GOSSIP_PORT_1:-4001} # Internal port reference
+      - GOSSIP_PORT_2=${GOSSIP_PORT_2:-4002} # Internal port reference
       - LOG_LEVEL=${LOG_LEVEL:-info}
+    # Expose Gossip ports directly. ETH RPC port is exposed conditionally via rpc-shared.yml
     ports:
-      - ${ETH_RPC_PORT:-3001}:3001/tcp
-      - ${GOSSIP_PORT_1:-4001}:4001/tcp
-      - ${GOSSIP_PORT_2:-4002}:4002/tcp
+    # - ${ETH_RPC_PORT:-3001}:${ETH_RPC_PORT:-3001}/tcp # Handled by rpc-shared.yml if EXPOSE_RPC=true
+      - ${GOSSIP_PORT_1:-4001}:${GOSSIP_PORT_1:-4001}/tcp
+      - ${GOSSIP_PORT_2:-4002}:${GOSSIP_PORT_2:-4002}/tcp
     <<: *logging
     volumes:
       - hl-data:/home/hluser/hl/data
@@ -40,16 +43,16 @@ services:
       - recent-actions
       - --serve-eth-rpc
     labels:
-      - traefik.enable=true
+      - traefik.enable=true # Keep true, actual routing depends on ext-network.yml being used
       - traefik.http.routers.${RPC_HOST:-hyperliquid}.service=${RPC_HOST:-hyperliquid}
       - traefik.http.routers.${RPC_HOST:-hyperliquid}.entrypoints=websecure
       - traefik.http.routers.${RPC_HOST:-hyperliquid}.rule=Host(`${RPC_HOST:-hyperliquid}.${DOMAIN:-local}`)
       - traefik.http.routers.${RPC_HOST:-hyperliquid}.tls.certresolver=letsencrypt
-      - traefik.http.services.${RPC_HOST:-hyperliquid}.loadbalancer.server.port=${ETH_RPC_PORT:-3001}
+      - traefik.http.services.${RPC_HOST:-hyperliquid}.loadbalancer.server.port=${ETH_RPC_PORT:-3001} # Target internal port
       - metrics.scrape=true
       - metrics.path=/metrics
-      - metrics.port=3001
-      - metrics.instance=hyperliquid
+      - metrics.port=${ETH_RPC_PORT:-3001} # Target internal port for metrics
+      - metrics.instance=${RPC_HOST:-hyperliquid} # Use RPC_HOST for instance name
       - metrics.network=${CHAIN:-Mainnet}
 
   pruner:
@@ -60,12 +63,14 @@ services:
       - hl-data:/home/hluser/hl/data
     image: hyperliquid-pruner:local
     pull_policy: never
-    # Running as root is required for cron to access /var/run/crond.pid
+    # Running as root is required for cron
     user: root
     stop_grace_period: 2m
     environment:
-      - RETENTION_HOURS=${PRUNE_RETAIN_HOURS:-168}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Pass schedule and retention days to the container
+      - PRUNE_SCHEDULE=${PRUNE_SCHEDULE:-0 3 * * *}
+      - PRUNE_RETAIN_DAYS=${PRUNE_RETAIN_DAYS:-7}
+      - LOG_LEVEL=${LOG_LEVEL:-info} # Inherit log level
     <<: *logging
 
 volumes:

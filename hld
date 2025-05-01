@@ -136,7 +136,7 @@ case "$1" in
     echo "  install-service Install systemd service"
     echo "  logs            View logs"
     echo "  help            This help message"
-    echo "  *               Pass any other commands to docker-compose"
+    echo "  *               Pass any other commands to docker compose"
     exit 0
     ;;
   down)
@@ -155,17 +155,15 @@ case "$1" in
     echo "Updating docker images..."
     $ROOT docker compose ${COMPOSE_FILE} pull
     echo
-    echo "To apply the updates, run: $(basename $0) up"
-    exit 0
-    ;;
-  create-account)
-    # This is a more advanced command, we do not directly pass through
-    # docker-compose run --rm eth make-account
+    echo "Rebuilding local images if necessary..."
+    $ROOT docker compose ${COMPOSE_FILE} build --pull
+    echo
+    echo "To apply the updates, run: $(basename $0) up -d --remove-orphans"
     exit 0
     ;;
   logs)
     shift
-    $ROOT docker compose ${COMPOSE_FILE} logs ${SERVICE_NAME} "$@"
+    $ROOT docker compose ${COMPOSE_FILE} logs --follow ${SERVICE_NAME} "$@"
     exit 0
     ;;
 esac
