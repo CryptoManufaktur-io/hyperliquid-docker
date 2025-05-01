@@ -25,8 +25,6 @@ RUN if [ "$CHAIN" = "Mainnet" ]; then \
     else \
         echo "ERROR: Invalid CHAIN specified: $CHAIN. Only 'Mainnet' and 'Testnet' are supported." >&2 && exit 1 ; \
     fi
-# Remove ENV for PUB_KEY_URL as it's now an ARG
-# ENV PUB_KEY_URL=https://raw.githubusercontent.com/hyperliquid-dex/node/refs/heads/main/pub_key.asc
 # Import GPG public key using ARG
 RUN curl -o /home/$USERNAME/pub_key.asc ${PUB_KEY_URL} \
     && gpg --import /home/$USERNAME/pub_key.asc
@@ -42,11 +40,6 @@ RUN if [ "$CHAIN" = "Mainnet" ]; then \
     fi \
     && gpg --verify /home/$USERNAME/hl-visor.asc /home/$USERNAME/hl-visor \
     && chmod +x /home/$USERNAME/hl-visor
-# Remove entrypoint.sh creation as it's overridden in docker-compose.yml
-# RUN echo '#!/bin/bash' > /home/$USERNAME/entrypoint.sh && \
-#     echo 'ARGS=("/home/hluser/hl-visor" "run-non-validator" "--replica-cmds-style" "recent-actions" "--serve-eth-rpc")' >> /home/$USERNAME/entrypoint.sh && \
-#     echo 'exec "${ARGS[@]}"' >> /home/$USERNAME/entrypoint.sh && \
-#     chmod +x /home/$USERNAME/entrypoint.sh
 
 # Expose default internal ports (informational)
 EXPOSE 4001 4002 3001

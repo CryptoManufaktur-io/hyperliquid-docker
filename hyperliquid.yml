@@ -31,21 +31,26 @@ services:
       - GOSSIP_PORT_1=${GOSSIP_PORT_1:-4001} # Internal port reference
       - GOSSIP_PORT_2=${GOSSIP_PORT_2:-4002} # Internal port reference
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Add ENABLE_RPC to the container environment
+      - ENABLE_RPC=${ENABLE_RPC:-true}
     # Expose Gossip ports directly. ETH RPC port is exposed conditionally via rpc-shared.yml
     ports:
-    # - ${ETH_RPC_PORT:-3001}:${ETH_RPC_PORT:-3001}/tcp # Handled by rpc-shared.yml if EXPOSE_RPC=true
       - ${GOSSIP_PORT_1:-4001}:${GOSSIP_PORT_1:-4001}/tcp
       - ${GOSSIP_PORT_2:-4002}:${GOSSIP_PORT_2:-4002}/tcp
     <<: *logging
     volumes:
       - hl-data:/home/hluser/hl/data
-    # Revert entrypoint to list form
-    entrypoint:
-      - /home/hluser/hl-visor
-      - run-non-validator
-      - --replica-cmds-style
-      - recent-actions
-      - --serve-eth-rpc
+    # Use shell + exec to conditionally add --serve-eth-rpc and handle EXTRA_FLAGS
+    entrypoint: >
+      sh -c '
+        CMD="/home/hluser/hl-visor run-non-validator --replica-cmds-style recent-actions"
+        if [ "$${ENABLE_RPC:-true}" = "true" ]; then
+          CMD="$${CMD} --serve-eth-rpc"
+        fi
+        CMD="$${CMD} $${EXTRA_FLAGS}"
+        echo "Executing: exec $${CMD}"
+        exec $${CMD}
+      '
     # The EXTRA_FLAGS env variable should be picked up by hl-visor internally
     labels:
       - traefik.enable=true # Keep true, actual routing depends on ext-network.yml being used

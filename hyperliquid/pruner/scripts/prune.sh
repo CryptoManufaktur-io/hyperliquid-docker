@@ -25,8 +25,6 @@ echo "$(date): Size before pruning: $size_before with $files_before files" >> /p
 
 # Calculate minutes from hours for find command
 MINUTES=$((RETENTION_HOURS * 60))
-# Use -delete directly for efficiency if supported and desired, otherwise use xargs
-# find "$DATA_PATH" -mindepth 1 -depth -mmin +$MINUTES -type f -print -delete
 # Safer alternative using xargs:
 find "$DATA_PATH" -mindepth 1 -depth -mmin +$MINUTES -type f -print0 | xargs -0 --no-run-if-empty rm -f
 
