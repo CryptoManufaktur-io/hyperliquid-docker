@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  node:
+    ports:
+      - "3001:3001"   # ETH RPC Port
+      - "4001:4001"   # Gossip Port
+      - "4002:4002"   # Gossip Port

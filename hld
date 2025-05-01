@@ -1,0 +1,173 @@
+#!/bin/bash
+# Wrapper script for docker-compose
+# Dependencies: docker-compose >= 1.28.0
+
+# Parameters are passed as environment variables, or in .env
+ENV_FILE=.env
+
+# Set this to the service name for your eth client service from ${COMPOSE_FILE}
+if [ -z "${SERVICE_NAME}" ]; then
+  SERVICE_NAME="node"
+fi
+
+# Root is optional, only used for jails
+ROOT=
+if [[ "$1" =~ ^("install-docker"|"install-services"|"install")$ ]]; then
+  # Get ubuntu (debian really) version
+  source /etc/os-release
+
+  # Check if we're running on Debian
+  if [[ "${NAME}" =~ "Ubuntu" ]] || [[ "${NAME}" =~ "Debian" ]]; then
+    if [[ "${VERSION_ID}" =~ "18."* ]] || [[ "${VERSION_ID}" =~ "10."* ]] || [[ "${VERSION_ID}" =~ "20."* ]] || [[ "${VERSION_ID}" =~ "11."* ]] || [[ "${VERSION_ID}" =~ "22."* ]]; then
+      echo "${NAME} ${VERSION_ID} found, this script will work."
+    else
+      echo "WARNING: This script was tested on ${NAME} 18.04, 20.04, 22.04 and 10, 11. You're running ${NAME} ${VERSION_ID}"
+      echo "Proceeding, but you're on your own."
+    fi
+  else
+    echo "WARNING: This script may not work on ${NAME}"
+    echo "Proceeding, but you're on your own."
+  fi
+  
+  # Check for docker and docker-compose
+  dpkg-query -f'${binary:Package}\n' -W | grep docker.io >/dev/null 2>&1 && echo "Docker is installed" || { echo "Docker is not installed - please install it manually."; exit 1; }
+  dpkg-query -f'${binary:Package}\n' -W | grep docker-compose-plugin >/dev/null 2>&1 && echo "Docker Compose Plugin is installed" || { echo "Docker Compose Plugin is not installed - please install it manually."; exit 1; }
+  
+  if [[ "$1" =~ ^("install-docker"|"install")$ ]]; then
+    if ( which docker && which docker compose ) >/dev/null 2>&1; then
+      echo "Docker and docker compose are already installed"
+    else
+      echo "Installing docker and docker compose"
+      apt-get update && apt-get install -y ca-certificates curl gnupg && install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+  
+      # Add the repository to Apt sources:
+      echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      tee /etc/apt/sources.list.d/docker.list > /dev/null
+      apt-get -y update
+      apt-get install -y docker-ce docker-ce-cli docker-compose-plugin containerd.io
+    fi
+  fi
+
+  if [[ "$1" =~ ^("install-services"|"install")$ ]]; then
+    # Install service file
+    cat >/etc/systemd/system/hyperliquid.service <<'EOT'
+[Unit]
+Description=Hyperliquid
+After=docker.service
+Wants=network-online.target docker.socket
+Requires=docker.service
+
+[Service]
+Type=simple
+Environment=USER=root
+Environment=HOME=/root
+LimitNOFILE=1000000
+ExecStart=/usr/local/bin/hld up
+ExecStop=/usr/local/bin/hld stop
+Restart=on-failure
+RestartSec=3
+TimeoutSec=300
+
+[Install]
+WantedBy=multi-user.target
+EOT
+
+    # Install wrapper script
+    cat >/usr/local/bin/hld <<'EOT'
+#!/bin/bash
+# Wrapper for all hyperliquid.sh commands; include directory and do path conversion
+cd "$(dirname "$(readlink -f "/etc/systemd/system/hyperliquid.service")")/.."
+docker_uid="$(id -u)"
+docker_gid="$(id -g)"
+if [ "${docker_uid}" -eq 0 ]; then
+  docker_uid="$(grep -PO '^UID=\K[0-9]+' .env)"
+  docker_gid="$(grep -PO '^GID=\K[0-9]+' .env)"
+fi
+exec env USER_UID="${docker_uid}" USER_GID="${docker_gid}" ./hld "$@"
+EOT
+    chmod +x /usr/local/bin/hld
+
+    systemctl daemon-reload
+    systemctl enable hyperliquid
+    echo "Hyperliquid service installed. It will automatically start on boot and can be controlled with: sudo systemctl {start,stop,restart} hyperliquid.service"
+  fi
+  echo "Done!"
+  exit 0
+fi
+
+# Check if we're running as root
+if [ "$(id -u)" -eq 0 ]; then
+  echo "WARNING: Running as root, please consider adding your user to the docker group and running as non-root"
+  echo "sudo usermod -aG docker USERNAME"
+  echo "newgrp docker"
+  echo
+fi
+
+if [[ ! -f "${ENV_FILE}" ]]; then
+  echo "No .env file found, please copy default.env to .env first."
+  exit 1
+fi
+
+source "${ENV_FILE}"
+
+if [[ -n "${COMPOSE_FILE}" ]]; then
+  COMPOSE_FILE="-f ${COMPOSE_FILE//:/  -f }"
+else
+  COMPOSE_FILE="-f hyperliquid.yml"
+fi
+
+# Handle commands that need special treatment
+case "$1" in
+  help)
+    echo "Usage: $(basename $0) COMMAND [OPTIONS]"
+    echo
+    echo "Commands:"
+    echo "  up              Start all services"
+    echo "  down            Stop all services and remove containers"
+    echo "  stop            Stop all services"
+    echo "  restart         Restart all services"
+    echo "  update          Update all docker images"
+    echo "  install         Install docker, docker-compose, and services"
+    echo "  install-docker  Install docker and docker-compose"
+    echo "  install-service Install systemd service"
+    echo "  logs            View logs"
+    echo "  help            This help message"
+    echo "  *               Pass any other commands to docker-compose"
+    exit 0
+    ;;
+  down)
+    $ROOT docker compose ${COMPOSE_FILE} down --remove-orphans
+    exit 0
+    ;;
+  restart)
+    $ROOT docker compose ${COMPOSE_FILE} restart
+    exit 0
+    ;;
+  stop)
+    $ROOT docker compose ${COMPOSE_FILE} stop
+    exit 0
+    ;;
+  update)
+    echo "Updating docker images..."
+    $ROOT docker compose ${COMPOSE_FILE} pull
+    echo
+    echo "To apply the updates, run: $(basename $0) up"
+    exit 0
+    ;;
+  create-account)
+    # This is a more advanced command, we do not directly pass through
+    # docker-compose run --rm eth make-account
+    exit 0
+    ;;
+  logs)
+    shift
+    $ROOT docker compose ${COMPOSE_FILE} logs ${SERVICE_NAME} "$@"
+    exit 0
+    ;;
+esac
+
+$ROOT docker compose ${COMPOSE_FILE} "${@:1}"

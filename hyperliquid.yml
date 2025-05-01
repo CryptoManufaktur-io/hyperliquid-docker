@@ -1,0 +1,39 @@
+version: '3.4'
+
+services:
+  node:
+    restart: unless-stopped
+    build:
+      context: ./hyperliquid
+      args:
+        - USERNAME=hluser
+        - USER_UID=${LOCAL_UID:-10000}
+        - CHAIN=${CHAIN:-Mainnet}
+    environment:
+      - CHAIN=${CHAIN:-Mainnet}
+    volumes:
+      - ${DATA_DIR:-./hyperliquid-data}:/home/hluser/hl/data
+    stop_grace_period: 1m
+    networks:
+      - default
+
+  pruner:
+    restart: unless-stopped
+    build:
+      context: ./hyperliquid/pruner
+      args:
+        - USERNAME=hluser
+        - USER_UID=${LOCAL_UID:-10000}
+    environment:
+      - RETENTION_HOURS=${PRUNE_RETAIN_DAYS:-7}
+    volumes:
+      - ${DATA_DIR:-./hyperliquid-data}:/home/hluser/hl/data
+    networks:
+      - default
+    # Only run the pruner if pruning is enabled
+    profiles:
+      - ${ENABLE_PRUNING:-true}
+
+networks:
+  default:
+    name: hyperliquid

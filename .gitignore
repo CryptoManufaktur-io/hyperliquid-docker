@@ -1,0 +1,5 @@
+.env
+hyperliquid-data/
+*.swp
+*.swo
+*~
