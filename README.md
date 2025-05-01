@@ -36,32 +36,26 @@ It's designed to work with [central-proxy-docker](https://github.com/CryptoManuf
     ```bash
     sudo ./hld install
     ```
-    This command installs Docker CE and the systemd service if they aren't already present.
+    This command installs Docker CE and the systemd service if they aren't already present. After installation, both `hld` and `ethd` commands can be used interchangeably.
+    *(Note: While this installs a systemd service, the following instructions focus on direct `docker compose` usage via the `hld`/`ethd` script).*
 
 4.  **Start the Node:**
-    Bring up your Hyperliquid node:
+    Bring up your Hyperliquid node using the wrapper script:
     ```bash
-    ./hld up -d # Use -d to run in detached mode
-    ```
-    Or, if installed as a service:
-    ```bash
-    sudo systemctl start hyperliquid.service
+    ./hld up -d # Or ./ethd up -d
     ```
 
 5.  **Check Logs:**
+    View the container logs using the wrapper script:
     ```bash
-    ./hld logs
-    ```
-    Or, if running as a service:
-    ```bash
-    sudo journalctl -u hyperliquid.service -f
+    ./hld logs # Or ./ethd logs
     ```
 
 6.  **Software Updates:**
     To update the node software and Docker images:
     ```bash
-    ./hld update
-    ./hld up -d --remove-orphans # Restart containers with updated images
+    ./hld update # Or ./ethd update
+    ./hld up -d --remove-orphans # Or ./ethd up -d --remove-orphans
     ```
 
 ## Node Setup
