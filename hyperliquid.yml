@@ -1,5 +1,3 @@
-version: '3.4'
-
 x-logging: &logging
   logging:
     driver: json-file
@@ -21,6 +19,17 @@ services:
     user: hluser
     restart: unless-stopped
     stop_grace_period: 5m
+    healthcheck: # Updated healthcheck using eth_syncing
+      test: |
+        CMD-SHELL
+        curl -s -X POST \
+             -H "Content-Type: application/json" \
+             --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
+             http://localhost:$${ETH_RPC_PORT:-3001}/evm | jq -e '.result == false'
+      interval: 30s
+      timeout: 10s
+      retries: 5 # Increased retries slightly
+      start_period: 3m # Increased start_period as port might take time
     environment:
       - DAEMON_VERSION=${HL_NODE_VERSION:-latest}
       # EXTRA_FLAGS is passed as env, hl-visor should handle it

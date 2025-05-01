@@ -91,9 +91,14 @@ exec env USER_UID="${docker_uid}" USER_GID="${docker_gid}" ./hld "$@"
 EOT
     chmod +x /usr/local/bin/hld
 
+    # Create ethd symlink
+    ln -sf /usr/local/bin/hld /usr/local/bin/ethd
+    echo "Created symlink /usr/local/bin/ethd -> /usr/local/bin/hld"
+
     systemctl daemon-reload
     systemctl enable hyperliquid
     echo "Hyperliquid service installed. It will automatically start on boot and can be controlled with: sudo systemctl {start,stop,restart} hyperliquid.service"
+    echo "You can use either 'hld' or 'ethd' commands."
   fi
   echo "Done!"
   exit 0

@@ -1,5 +1,3 @@
-version: '3.4'
-
 # Include this file in COMPOSE_FILE and set EXPOSE_RPC=true in .env to expose the ETH RPC port
 services:
   node:

@@ -16,7 +16,8 @@ It's designed to work with [central-proxy-docker](https://github.com/CryptoManuf
     *   `CHAIN`: Set to "Mainnet" or "Testnet".
     *   `MONIKER`: Choose a name for your node.
     *   `HL_NODE_VERSION`: Pin to a specific version if needed (default: `latest`).
-    *   `EXPOSE_RPC`: Set to `true` if you need to access RPC/Gossip ports directly from your host machine.
+    *   `ENABLE_RPC`: Set to `false` to disable the `--serve-eth-rpc` flag (default: `true`).
+    *   `EXPOSE_RPC`: Set to `true` if you need to access the ETH RPC port directly from your host machine.
     *   `COMPOSE_FILE`: Add other compose files like `:rpc-shared.yml` or `:ext-network.yml` as needed.
     *   Pruning settings (`PRUNE_SCHEDULE`, `PRUNE_RETAIN_DAYS`).
     *   Traefik settings (`DOMAIN`, `RPC_HOST`) if using `ext-network.yml`.
@@ -69,6 +70,7 @@ When you first start the node, the container will:
 *   **Initialize the node** based on the `CHAIN` variable ("Mainnet" or "Testnet").
 *   **Configure the appropriate peers** for the selected network.
 *   **Download and verify the hl-visor binary** for the specified `HL_NODE_VERSION` using the official GPG key.
+*   A basic **healthcheck** is configured to monitor the RPC endpoint (if enabled).
 
 ## Data Pruning
 
@@ -81,8 +83,30 @@ The setup includes an optional `pruner` service that automatically removes old b
 
 If you include `:ext-network.yml` in your `COMPOSE_FILE` and configure `DOMAIN` and `RPC_HOST` in `.env`, the node service will be labeled for discovery by a Traefik instance running on the `DOCKER_EXT_NETWORK` (typically `traefik_default` from central-proxy-docker). This provides secure, proxied access (HTTPS) to the node's Ethereum RPC endpoint.
 
+## Deployment Considerations
+
+### AWS EC2
+*   **Security Groups:** Ensure your EC2 instance's Security Group allows inbound traffic on the necessary ports:
+    *   Gossip Ports (`GOSSIP_PORT_1`, `GOSSIP_PORT_2`, default 4001/tcp, 4002/tcp) from relevant peers (or `0.0.0.0/0` if unsure, but be cautious).
+    *   ETH RPC Port (`ETH_RPC_PORT`, default 3001/tcp) if `EXPOSE_RPC=true`, from your allowed IP addresses.
+    *   SSH (22/tcp) from your management IP.
+*   **Storage:** The `hl-data` Docker volume stores blockchain data. For data persistence across instance stops/restarts or failures, consider mapping this volume to a directory on an attached EBS volume. You can do this by changing the `hl-data` volume definition in `hyperliquid.yml` from a named volume to a bind mount:
+    ```yaml
+    volumes:
+      # Example: Map to /mnt/ebs/hyperliquid-data on the host
+      - /mnt/ebs/hyperliquid-data:/home/hluser/hl/data
+    # Remove the named volume definition at the bottom
+    # volumes:
+    #  hl-data:
+    ```
+    Ensure the host directory (`/mnt/ebs/hyperliquid-data` in the example) exists and has appropriate permissions.
+*   **Instance Size:** Choose an EC2 instance type with sufficient CPU, RAM, and network bandwidth. Monitor resource usage after deployment.
+
+### Resource Limits
+*   For stable operation, especially in resource-constrained environments like smaller EC2 instances, consider setting resource limits (CPU, memory) for the `node` container. Uncomment and adjust the `deploy.resources` section in `hyperliquid.yml` as needed based on observed usage and instance capacity.
+
 ## Version
 
 Hyperliquid Node Docker uses semantic versioning.
 
-This is Hyperliquid Node Docker v1.1.0 (Updated based on these changes)
+This is Hyperliquid Node Docker v1.2.0

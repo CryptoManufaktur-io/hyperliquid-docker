@@ -10,7 +10,7 @@ ARG MAINNET_ROOT_IPS='[{"Ip": "35.213.122.164"}, {"Ip": "35.213.89.139"}]'
 # Create user and install dependencies
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && apt-get update -y && apt-get install -y curl gnupg net-tools \
+    && apt-get update -y && apt-get install -y curl gnupg net-tools jq \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /home/$USERNAME/hl/data && chown -R $USERNAME:$USERNAME /home/$USERNAME/hl
 USER $USERNAME
