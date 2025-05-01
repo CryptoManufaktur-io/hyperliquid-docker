@@ -12,8 +12,10 @@ services:
   node:
     build:
       context: ./hyperliquid
-      args: # Pass CHAIN during build
+      args: # Pass ARGs from environment during build
         - CHAIN=${CHAIN:-Mainnet}
+        - PUB_KEY_URL=${PUB_KEY_URL}
+        - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS}
     image: hyperliquid:local
     pull_policy: never
     user: hluser
@@ -21,6 +23,7 @@ services:
     stop_grace_period: 5m
     environment:
       - DAEMON_VERSION=${HL_NODE_VERSION:-latest}
+      # EXTRA_FLAGS is passed as env, hl-visor should handle it
       - EXTRA_FLAGS=${EXTRA_FLAGS:-}
       - NETWORK=${CHAIN:-Mainnet}
       - MONIKER=${MONIKER:-hyperliquid}
@@ -36,12 +39,14 @@ services:
     <<: *logging
     volumes:
       - hl-data:/home/hluser/hl/data
+    # Revert entrypoint to list form
     entrypoint:
       - /home/hluser/hl-visor
       - run-non-validator
       - --replica-cmds-style
       - recent-actions
       - --serve-eth-rpc
+    # The EXTRA_FLAGS env variable should be picked up by hl-visor internally
     labels:
       - traefik.enable=true # Keep true, actual routing depends on ext-network.yml being used
       - traefik.http.routers.${RPC_HOST:-hyperliquid}.service=${RPC_HOST:-hyperliquid}
