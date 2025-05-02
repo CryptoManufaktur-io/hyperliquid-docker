@@ -23,7 +23,7 @@ It's designed to work with [central-proxy-docker](https://github.com/CryptoManuf
     *   Traefik settings (`DOMAIN`, `RPC_HOST`) if using `ext-network.yml`.
 
 2.  **Expose ETH RPC Port (Optional):**
-    The node's gossip ports (`GOSSIP_PORT_1`, `GOSSIP_PORT_2`) are always exposed on the host machine. If you also need the node's ETH RPC port (`ETH_RPC_PORT`) exposed directly on your host machine (e.g., for local tools or testing), set `EXPOSE_RPC=true` in your `.env` file **and** add `:rpc-shared.yml` to the `COMPOSE_FILE` list. For example:
+    The node's gossip ports (`GOSSIP_PORT_1`, `GOSSIP_PORT_2`) are always exposed on the host machine by default via `hyperliquid.yml`. If you also need the node's ETH RPC port (`ETH_RPC_PORT`) exposed directly on your host machine (e.g., for local tools or testing), set `EXPOSE_RPC=true` in your `.env` file **and** add `:rpc-shared.yml` to the `COMPOSE_FILE` list. For example:
     ```env
     # .env
     EXPOSE_RPC=true
@@ -81,8 +81,8 @@ If you include `:ext-network.yml` in your `COMPOSE_FILE` and configure `DOMAIN` 
 
 ### AWS EC2
 *   **Security Groups:** Ensure your EC2 instance's Security Group allows inbound traffic on the necessary ports:
-    *   Gossip Ports (`GOSSIP_PORT_1`, `GOSSIP_PORT_2`, default 4001/tcp, 4002/tcp) from relevant peers (or `0.0.0.0/0` if unsure, but be cautious).
-    *   ETH RPC Port (`ETH_RPC_PORT`, default 3001/tcp) if `EXPOSE_RPC=true`, from your allowed IP addresses.
+    *   Gossip Ports (`GOSSIP_PORT_1`, `GOSSIP_PORT_2`, default 4001/tcp, 4002/tcp) from relevant peers (or `0.0.0.0/0` if unsure, but be cautious). These are always exposed by the container.
+    *   ETH RPC Port (`ETH_RPC_PORT`, default 3001/tcp) *only if* `EXPOSE_RPC=true` and `rpc-shared.yml` is included, from your allowed IP addresses.
     *   SSH (22/tcp) from your management IP.
 *   **Storage:** The `hl-data` Docker volume stores blockchain data. For data persistence across instance stops/restarts or failures, consider mapping this volume to a directory on an attached EBS volume. You can do this by changing the `hl-data` volume definition in `hyperliquid.yml` from a named volume to a bind mount:
     ```yaml

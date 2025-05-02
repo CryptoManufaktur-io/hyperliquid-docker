@@ -3,3 +3,4 @@ services:
   node:
     ports:
       - "${ETH_RPC_PORT:-3001}:${ETH_RPC_PORT:-3001}"   # ETH RPC Port
+    # Gossip ports are now always exposed in hyperliquid.yml
