@@ -1,0 +1,96 @@
+# Docker Compose file for Hyperliquid VALIDATOR node
+# This file is selected by setting COMPOSE_FILE=hyperliquid-validator.yml in your .env file.
+# It INCLUDES the node_config.json volume mount and hardcodes the entrypoint to run-validator.
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  node:
+    build:
+      context: ./hyperliquid
+      # ARGs related to CHAIN, IPs, and peer settings are removed as these are handled at runtime by the entrypoint
+      args:
+        - PUB_KEY_URL=${PUB_KEY_URL}
+    image: hyperliquid:local # Ensures we use the locally built image
+    pull_policy: never
+    user: hluser
+    restart: unless-stopped
+    stop_grace_period: 5m
+    healthcheck:
+      test: |
+        CMD-SHELL
+        curl -s -X POST \\
+             -H "Content-Type: application/json" \\
+             --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \\
+             http://localhost:$${ETH_RPC_PORT:-3001}/evm | jq -e '.result == false'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 3m
+    environment:
+      - COMPOSE_FILE=${COMPOSE_FILE} # Pass COMPOSE_FILE to the container
+      - DAEMON_VERSION=${HL_NODE_VERSION:-latest} # This is for hl-visor to download hl-node, not the visor itself
+      - EXTRA_FLAGS=${EXTRA_FLAGS:-}
+      - CHAIN=${CHAIN:-Mainnet} # Pass CHAIN to the entrypoint script
+      - MONIKER=${MONIKER:-hyperliquid}
+      - ETH_RPC_PORT=${ETH_RPC_PORT:-3001}
+      - GOSSIP_PORT_1=${GOSSIP_PORT_1:-4001}
+      - GOSSIP_PORT_2=${GOSSIP_PORT_2:-4002}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - ENABLE_RPC=${ENABLE_RPC:-true}
+      # Pass gossip config variables to the entrypoint script
+      - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS}
+      - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS}
+      - MAINNET_GOSSIP_TRY_NEW_PEERS=${MAINNET_GOSSIP_TRY_NEW_PEERS}
+      - TESTNET_GOSSIP_TRY_NEW_PEERS=${TESTNET_GOSSIP_TRY_NEW_PEERS}
+    ports:
+      - ${GOSSIP_PORT_1:-4001}:${GOSSIP_PORT_1:-4001}/tcp
+      - ${GOSSIP_PORT_2:-4002}:${GOSSIP_PORT_2:-4002}/tcp
+      - ${VAL_PORT_3:-4003}:${VAL_PORT_3:-4003}/tcp
+      - ${VAL_PORT_4:-4004}:${VAL_PORT_4:-4004}/tcp
+      - ${VAL_PORT_5:-4005}:${VAL_PORT_5:-4005}/tcp
+      - ${VAL_PORT_6:-4006}:${VAL_PORT_6:-4006}/tcp
+    <<: *logging
+    volumes:
+      - hl-data:/home/hluser/hl/data
+      - ./hyperliquid_configs/node_config.json:/home/hluser/hl/hyperliquid_data/node_config.json:ro
+      - ./entrypoint.sh:/home/hluser/entrypoint.sh:ro
+    entrypoint: >
+      sh /home/hluser/entrypoint.sh
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${RPC_HOST:-hyperliquid}.service=${RPC_HOST:-hyperliquid}
+      - traefik.http.routers.${RPC_HOST:-hyperliquid}.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST:-hyperliquid}.rule=Host(`${RPC_HOST:-hyperliquid}.${DOMAIN:-local}`)
+      - traefik.http.routers.${RPC_HOST:-hyperliquid}.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST:-hyperliquid}.loadbalancer.server.port=${ETH_RPC_PORT:-3001}
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=${ETH_RPC_PORT:-3001}
+      - metrics.instance=${RPC_HOST:-hyperliquid}
+      - metrics.network=${CHAIN:-Mainnet}
+
+  pruner:
+    restart: unless-stopped
+    build:
+      context: ./hyperliquid/pruner
+    volumes:
+      - hl-data:/home/hluser/hl/data
+    image: hyperliquid-pruner:local
+    pull_policy: never
+    user: root
+    stop_grace_period: 10s # Reduce the grace period to 10 seconds
+    environment:
+      - PRUNE_SCHEDULE=${PRUNE_SCHEDULE:-0 3 * * *}
+      - PRUNE_RETAIN_DAYS=${PRUNE_RETAIN_DAYS:-7}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    <<: *logging
+
+volumes:
+  hl-data:
