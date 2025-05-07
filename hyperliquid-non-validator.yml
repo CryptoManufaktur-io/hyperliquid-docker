@@ -21,7 +21,7 @@ services:
     pull_policy: never
     user: hluser
     restart: unless-stopped
-    stop_grace_period: 5m
+    stop_grace_period: 5s # Reduce the grace period to 5 seconds
     healthcheck:
       test: |
         CMD-SHELL
@@ -29,10 +29,10 @@ services:
              -H "Content-Type: application/json" \\
              --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \\
              http://localhost:$${ETH_RPC_PORT:-3001}/evm | jq -e '.result == false'
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 3m
+      interval: 10s # Reduce interval to 10 seconds
+      timeout: 5s   # Reduce timeout to 5 seconds
+      retries: 2    # Reduce retries to 2
+      start_period: 15s # Reduce start period to 15 seconds
     environment:
       - DAEMON_VERSION=${HL_NODE_VERSION:-latest} # This is for hl-visor to download hl-node, not the visor itself
       - EXTRA_FLAGS=${EXTRA_FLAGS:-}
@@ -59,7 +59,6 @@ services:
     <<: *logging
     volumes:
       - hl-data:/home/hluser/hl/data
-      # node_config.json is NOT mounted for non-validator
       - ./entrypoint.sh:/home/hluser/entrypoint.sh:ro
     entrypoint: >
       sh /home/hluser/entrypoint.sh
@@ -85,7 +84,7 @@ services:
     image: hyperliquid-pruner:local
     pull_policy: never
     user: root
-    stop_grace_period: 2m
+    stop_grace_period: 5s # Reduce the grace period to 5 seconds
     environment:
       - PRUNE_SCHEDULE=${PRUNE_SCHEDULE:-0 3 * * *}
       - PRUNE_RETAIN_DAYS=${PRUNE_RETAIN_DAYS:-7}

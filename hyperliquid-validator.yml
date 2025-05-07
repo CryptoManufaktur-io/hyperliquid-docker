@@ -21,7 +21,7 @@ services:
     pull_policy: never
     user: hluser
     restart: unless-stopped
-    stop_grace_period: 5m
+    stop_grace_period: 5ms # Reduce the grace period to 10 seconds
     healthcheck:
       test: |
         CMD-SHELL
@@ -29,10 +29,10 @@ services:
              -H "Content-Type: application/json" \\
              --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \\
              http://localhost:$${ETH_RPC_PORT:-3001}/evm | jq -e '.result == false'
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 3m
+      interval: 10s # Reduce interval to 10 seconds
+      timeout: 5s   # Reduce timeout to 5 seconds
+      retries: 2    # Reduce retries to 3
+      start_period: 15s # Reduce start period to 30 seconds
     environment:
       - COMPOSE_FILE=${COMPOSE_FILE} # Pass COMPOSE_FILE to the container
       - DAEMON_VERSION=${HL_NODE_VERSION:-latest} # This is for hl-visor to download hl-node, not the visor itself
@@ -44,6 +44,7 @@ services:
       - GOSSIP_PORT_2=${GOSSIP_PORT_2:-4002}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - ENABLE_RPC=${ENABLE_RPC:-true}
+      - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY}
       # Pass gossip config variables to the entrypoint script
       - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS}
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS}
@@ -59,7 +60,6 @@ services:
     <<: *logging
     volumes:
       - hl-data:/home/hluser/hl/data
-      - ./hyperliquid_configs/node_config.json:/home/hluser/hl/hyperliquid_data/node_config.json:ro
       - ./entrypoint.sh:/home/hluser/entrypoint.sh:ro
     entrypoint: >
       sh /home/hluser/entrypoint.sh
