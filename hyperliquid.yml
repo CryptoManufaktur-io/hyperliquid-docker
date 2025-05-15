@@ -7,7 +7,7 @@ x-logging: &logging
       tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
 
 services:
-  node:
+  consensus:
     build:
       context: ./hyperliquid
       args:
@@ -18,36 +18,35 @@ services:
     user: "${USERNAME:-hyperliquid}"
     restart: unless-stopped
     environment:
-      - EXTRA_FLAGS=${EXTRA_FLAGS:-}
       - CHAIN=${CHAIN:-Mainnet}
+      - NODE_TYPE=${NODE_TYPE:-non-validator}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - ENABLE_EVM_RPC=${ENABLE_EVM_RPC:-false}
-      - NODE_TYPE=${NODE_TYPE:-non-validator}
       - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY:-}
-      - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS}
-      - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS}
+      - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
+      - EXTRA_FLAGS=${EXTRA_FLAGS:-}
     ports:
       - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/tcp
-      - ${EVM_RPC_PORT:-3001}:${EVM_RPC_PORT:-3001}/tcp
     <<: *logging
     volumes:
       - consensus-data:/home/${USERNAME}/hl/data
-    # entrypoint: ["bash"]
-    # stdin_open: true   # - keeps STDIN open
-    # tty: true
     entrypoint: ["docker-entrypoint.sh"]
-    # labels:
-    #   - traefik.enable=true
-    #   - traefik.http.routers.${RPC_HOST:-hyperliquid}.service=${RPC_HOST:-hyperliquid}
-    #   - traefik.http.routers.${RPC_HOST:-hyperliquid}.entrypoints=websecure
-    #   - traefik.http.routers.${RPC_HOST:-hyperliquid}.rule=Host(`${RPC_HOST:-hyperliquid}.${DOMAIN:-local}`)
-    #   - traefik.http.routers.${RPC_HOST:-hyperliquid}.tls.certresolver=letsencrypt
-    #   - traefik.http.services.${RPC_HOST:-hyperliquid}.loadbalancer.server.port=${ETH_RPC_PORT:-3001}
-    #   - metrics.scrape=true
-    #   - metrics.path=/metrics
-    #   - metrics.port=${ETH_RPC_PORT:-3001}
-    #   - metrics.instance=${RPC_HOST:-hyperliquid}
-    #   - metrics.network=${CHAIN:-Mainnet}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${RPC_HOST}.service=${RPC_HOST}
+      - traefik.http.routers.${RPC_HOST}.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST}.rule=Host(`${RPC_HOST}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${RPC_HOST}lb.service=${RPC_HOST}
+      - traefik.http.routers.${RPC_HOST}lb.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST}lb.rule=Host(`${RPC_LB}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST}lb.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST}.loadbalancer.server.port=${EVM_RPC_PORT}
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=${EVM_RPC_PORT}
+      - metrics.instance=${RPC_HOST}
+      - metrics.network=${CHAIN}
 
   # pruner:
   #   restart: unless-stopped

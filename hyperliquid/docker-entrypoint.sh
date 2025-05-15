@@ -4,30 +4,15 @@ set -e
 # Default node type
 : "${NODE_TYPE:=non-validator}"
 
-# Determine gossip root IPs and peer settings based on CHAIN
-case "$CHAIN" in
-  Mainnet)
-    ROOT_IPS="$MAINNET_ROOT_IPS"
-
-    ;;
-  Testnet)
-    ROOT_IPS="$TESTNET_ROOT_IPS"
-    ;;
-  *)
-    echo "Error: Invalid CHAIN '$CHAIN'. Must be 'Mainnet' or 'Testnet'." >&2
-    exit 1
-    ;;
-esac
-
-# Create override_gossip_config.json
-# if [ -n "$ROOT_IPS" ] && [ "$ROOT_IPS" != "[]" ]; then
-#   cat > "$HOME/override_gossip_config.json" <<EOF
-# { "root_node_ips": $ROOT_IPS, "try_new_peers": $TRY_NEW_PEERS, "chain": "$CHAIN" }
-# EOF
-# else
-#   echo "Error: No valid root IPs for chain '$CHAIN'" >&2
-#   exit 1
-# fi
+# Create override_gossip_config.json for mainnet only
+if [ -n "$MAINNET_ROOT_IPS" ] && [ "$MAINNET_ROOT_IPS" != "[]" ] && [ "$CHAIN" = "Mainnet" ]; then
+  cat > "$HOME/override_gossip_config.json" <<EOF
+{ "root_node_ips": $MAINNET_ROOT_IPS, "try_new_peers": false, "chain": "Mainnet" }
+EOF
+else
+  echo "Error: No valid root IPs for chain '$CHAIN'" >&2
+  exit 1
+fi
 
 # If validator, create node_config.json
 if [ "$NODE_TYPE" = "validator" ]; then

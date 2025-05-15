@@ -1,6 +1,9 @@
 # Set your RPC URLs
 LOCAL_RPC="http://localhost:3001/evm"
-PUBLIC_RPC="https://rpc.hyperliquid-testnet.xyz/evm"
+
+# Testnet: https://rpc.hyperliquid-testnet.xyz/evm
+# Mainnet: https://rpc.hyperliquid.xyz/evm
+PUBLIC_RPC="https://rpc.hyperliquid.xyz/evm"
 
 # Fetch your node’s latest block
 LOCAL_HEX=$(curl -s -X POST $LOCAL_RPC \

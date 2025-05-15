@@ -36,4 +36,3 @@ RUN if [ "$CHAIN" = "Testnet" ]; then \
  && chmod +x hl-visor
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
-# ENTRYPOINT ["bash"]
