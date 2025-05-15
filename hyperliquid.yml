@@ -1,8 +1,3 @@
-# Unified Docker Compose file for Hyperliquid nodes
-# This single file supports both validator and non-validator deployments
-# Set NODE_TYPE=validator in your .env file to run as a validator node
-# Otherwise, it will run as a non-validator node by default
-
 x-logging: &logging
   logging:
     driver: json-file
@@ -17,36 +12,32 @@ services:
       context: ./hyperliquid
       args:
         - PUB_KEY_URL=${PUB_KEY_URL}
+        - USERNAME=${USERNAME:-hyperliquid}
     image: hyperliquid:local
-    pull_policy: never
-    user: hluser
+    user: "${USERNAME:-hyperliquid}"
     restart: unless-stopped
-    stop_grace_period: 5s
-    healthcheck:
-      test: |
-        CMD-SHELL
-        curl -s -X POST \\
-             -H "Content-Type: application/json" \\
-             --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \\
-             http://localhost:$${ETH_RPC_PORT:-3001}/evm | jq -e '.result == false'
-      interval: 10s
-      timeout: 5s
-      retries: 2
-      start_period: 15s
+    # healthcheck:
+    #   test: |
+    #     CMD-SHELL
+    #     curl -s -X POST \\
+    #          -H "Content-Type: application/json" \\
+    #          --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \\
+    #          http://localhost:$${ETH_RPC_PORT:-3001}/evm | jq -e '.result == false'
+    #   interval: 10s
+    #   timeout: 15s
+    #   retries: 3
+    #   start_period: 30s
     environment:
       - DAEMON_VERSION=${HL_NODE_VERSION:-latest}
       - EXTRA_FLAGS=${EXTRA_FLAGS:-}
       - CHAIN=${CHAIN:-Mainnet}
-      - MONIKER=${MONIKER:-hyperliquid}
-      - ETH_RPC_PORT=${ETH_RPC_PORT:-3001}
+      - MONIKER=${MONIKER:-hyperliquid-docker}
       - GOSSIP_PORT_1=${GOSSIP_PORT_1:-4001}
       - GOSSIP_PORT_2=${GOSSIP_PORT_2:-4002}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - ENABLE_RPC=${ENABLE_RPC:-true}
       - NODE_TYPE=${NODE_TYPE:-non-validator}
-      # Validator-specific environment variables (only used with validator node type)
       - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY:-}
-      # Gossip config variables
       - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS}
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS}
       - MAINNET_GOSSIP_TRY_NEW_PEERS=${MAINNET_GOSSIP_TRY_NEW_PEERS}
@@ -60,12 +51,12 @@ services:
       - ${VAL_PORT_6:-4006}:${VAL_PORT_6:-4006}/tcp
     <<: *logging
     volumes:
-      - hl-data:/home/hluser/hl/data
-      - ./entrypoint.sh:/home/hluser/entrypoint.sh:ro
+      - consensus-data:/home/${USERNAME}/hl/data
+      - ./entrypoint.sh:/home/${USERNAME}/entrypoint.sh:ro
     entrypoint: >
       sh -c '
       echo "Starting Hyperliquid node in ${NODE_TYPE:-non-validator} mode for ${CHAIN:-Mainnet}"
-      exec sh /home/hluser/entrypoint.sh
+      exec sh /home/${USERNAME}/entrypoint.sh
       '
     labels:
       - traefik.enable=true
@@ -80,21 +71,23 @@ services:
       - metrics.instance=${RPC_HOST:-hyperliquid}
       - metrics.network=${CHAIN:-Mainnet}
 
-  pruner:
-    restart: unless-stopped
-    build:
-      context: ./hyperliquid/pruner
-    volumes:
-      - hl-data:/home/hluser/hl/data
-    image: hyperliquid-pruner:local
-    pull_policy: never
-    user: root
-    stop_grace_period: 10s
-    environment:
-      - PRUNE_SCHEDULE=${PRUNE_SCHEDULE:-0 3 * * *}
-      - PRUNE_RETAIN_DAYS=${PRUNE_RETAIN_DAYS:-7}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-    <<: *logging
+  # pruner:
+  #   restart: unless-stopped
+  #   build:
+  #     context: ./hyperliquid/pruner
+  #     args:
+  #       - USERNAME=${USERNAME:-hyperliquid}
+  #   volumes:
+  #     - consensus-data:/home/${USERNAME}/hl/data
+  #   image: hyperliquid-pruner:local
+  #   pull_policy: never
+  #   user: root
+  #   stop_grace_period: 10s
+  #   environment:
+  #     - PRUNE_SCHEDULE=${PRUNE_SCHEDULE:-0 3 * * *}
+  #     - PRUNE_RETAIN_DAYS=${PRUNE_RETAIN_DAYS:-7}
+  #     - LOG_LEVEL=${LOG_LEVEL:-info}
+  #   <<: *logging
 
 volumes:
-  hl-data:
+  consensus-data:

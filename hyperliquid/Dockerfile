@@ -1,14 +1,11 @@
 FROM ubuntu:24.04
-ARG USERNAME=hluser
+ARG USERNAME
 ARG USER_UID=10000
-ARG USER_GID=$USER_UID
-
-# Add ARGs for configurable values (IPs and peer settings will be passed as ENV vars to container at runtime)
-ARG PUB_KEY_URL=https://raw.githubusercontent.com/hyperliquid-dex/node/refs/heads/main/pub_key.asc
+ARG PUB_KEY_URL
 
 # Create user and install dependencies
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+RUN groupadd --gid $USER_UID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_UID -m $USERNAME \
     && apt-get update -y && apt-get install -y curl gnupg net-tools jq \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /home/$USERNAME/hl/data /home/$USERNAME/hl/hyperliquid_data \
@@ -40,5 +37,4 @@ RUN curl -sSL -o /home/$USERNAME/hl-visor-testnet https://binaries.hyperliquid-t
 RUN curl -sSL -o /home/$USERNAME/hl-node https://binaries.hyperliquid.xyz/$CHAIN/hl-node && \
     chmod +x /home/$USERNAME/hl-node
 
-# Expose default internal ports (informational)
 EXPOSE 4001 4002 3001
