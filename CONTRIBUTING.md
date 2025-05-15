@@ -1,33 +1,16 @@
-# Contributing to Hyperliquid Docker
+# Contributing
 
-Thank you for considering contributing to this repository!
+Contributions are welcome. All contributed code will be covered by the Apache License v2 of this project.
 
-## Development Process
+## Linting
 
-We use GitHub issues and pull requests to track contributions and improvements.
+The CI uses [pre-commit](https://pre-commit.com/) to lint all code within the repo. Add it to your local
+copy with `apt install pre-commit` and `pre-commit install`.
 
-### Pull Requests
-1. Fork the repository
-2. Create a new branch for your feature/fix
-3. Make your changes
-4. Submit a pull request
+This repo uses a squash-and-merge workflow to avoid extra merge commits. Create a branch for your feature or fix,
+and work on this branch, then offer a PR from there.
 
-### Commit Messages
-Please use clear, descriptive commit messages that explain the "why" not just the "what".
-
-## Code Style
-- Use descriptive variable names
-- Include useful comments in code
-- Keep the code consistent with existing patterns
-
-## Testing
-Before submitting a PR, please test your changes:
-1. Test on both supported networks (Mainnet and Testnet)
-2. Verify all scripts execute correctly
-3. Make sure the compose files work properly
-
-## Documentation
-- Update the README.md if your changes add or modify functionality
-- Document any new env variables in default.env
-
-Thank you for your contribution!
+If you end up working on `main`, you can create an `upstream` remote with
+`git remote add upstream https://github.com/org/repo.git` (replacing org and repo), and create a git alias with
+`git config --global alias.push-clean '!git fetch upstream main && git rebase upstream/main && git push -f'`. You can
+then `git push-clean` to your fork before opening a PR.

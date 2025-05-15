@@ -48,23 +48,21 @@ services:
       - metrics.instance=${RPC_HOST}
       - metrics.network=${CHAIN}
 
-  # pruner:
-  #   restart: unless-stopped
-  #   build:
-  #     context: ./hyperliquid/pruner
-  #     args:
-  #       - USERNAME=${USERNAME:-hyperliquid}
-  #   volumes:
-  #     - consensus-data:/home/${USERNAME}/hl/data
-  #   image: hyperliquid-pruner:local
-  #   pull_policy: never
-  #   user: root
-  #   stop_grace_period: 10s
-  #   environment:
-  #     - PRUNE_SCHEDULE=${PRUNE_SCHEDULE:-0 3 * * *}
-  #     - PRUNE_RETAIN_DAYS=${PRUNE_RETAIN_DAYS:-7}
-  #     - LOG_LEVEL=${LOG_LEVEL:-info}
-  #   <<: *logging
+  pruner:
+    build:
+      context: ./pruner
+      args:
+        - USERNAME=${USERNAME:-hyperliquid}
+    image: hyperliquid-pruner:local
+    user: root
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - consensus-data:/home/${USERNAME}/hl/data
+    depends_on:
+      - consensus
+    <<: *logging
 
 volumes:
   consensus-data:

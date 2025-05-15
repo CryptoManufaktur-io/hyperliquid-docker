@@ -1,28 +1,68 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-__project_name="Hyperliquid Node Docker"
+__project_name="Hyperliquid Docker"
 __app_name="Hyperliquid node"
-__sample_service="hyperliquid"
+__sample_service="X-geth"
 __docker_exe="docker"
 __compose_exe="docker compose"
 __compose_upgraded=0
+: "${USERNAME:=hyperliquid}"
 
-# Also adjust version() and __env_migrate for your chain, look for the word "Adjust" below
+# Also adjust version() and __prep_conffiles for your chain, look for the word "Adjust" below
+# If you are using an init container, adjust start()
 
 version() {
 # script version
   grep "^This is" README.md
   echo
   __var="COMPOSE_FILE"
-  __value=$(__get_value_from_env "${__var}" "${__env_file}")
+  __get_value_from_env "${__var}" "${__env_file}" "__value"
 # Client versions
 # Adjust for your clients and how to check their version
   case "${__value}" in
-    *babylon.yml* )
-      __docompose exec babylon babylond version
+    *hyperliquid.yml* )
+      __docompose exec consensus /home/$USERNAME/hl-visor --version
       ;;&
   esac
+}
+
+
+__prep_conffiles() {
+  # Adjust - this is where sample files would be copied to config files that are meant to be bind-mounted
+  return
+}
+
+
+start() {
+  __docompose up -d --remove-orphans "$@"
+# Adjust all of the below, carefully. hellcheck becomes shellcheck
+# If you have an init container, e.g. to grab a SNAPSHOT, delete the above line and run this in screen
+#  if ! type -P screen >/dev/null 2>&1; then
+#    ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y screen
+#  fi
+# If multiples of this stack may run on one host, distinguish by something unique. Otherwise just set a value here with
+# __screen_id=<name-of-project>
+# OR the next three lines
+# __var="NETWORK"
+# __get_value_from_env "${__var}" "${__env_file}" "__screen_id"
+# hellcheck disable=SC2154
+#  rm -f "/tmp/${__screen_id}-compose-screen.log"
+# hellcheck disable=SC2086
+#  screen -dmS "${__screen_id}-compose-session" -L -Logfile "/tmp/${__screen_id}-compose-screen.log" ${__compose_exe} up -d --remove-orphans "$@"
+#  echo "Running \"docker compose up -d\" in screen because of the init container."
+#  echo
+#  echo "If this is your first start and you are getting a SNAPSHOT, you can view the init logs:"
+#  echo "\"${__me} logs -f init\""
+#  echo
+#  echo "You can attach to the screen session with \"screen -r ${__screen_id}-compose-session\""
+#  echo
+#  echo "Waiting 5 seconds"
+#  sleep 5
+#  echo
+#  echo "Here's the output of docker compose so far:"
+#  cat "/tmp/${__screen_id}-compose-screen.log"
+#  echo
 }
 
 
@@ -31,42 +71,83 @@ __env_migrate() {
     return 0
   fi
 
-# Adjust these vars to your project
-  __all_vars=( COMPOSE_FILE MONIKER NETWORK BABYLON_NODE_VERSION MIN_GAS_PRICE EXTRA_FLAGS \
-            BLS_PASSWORD BABYLON_BUILD_OPTIONS FORCE_UPDATE FORCE_REBUILD FINALITY_PROVIDER_VERSION \
-            EOTSD_PUBLIC_KEY EOTSD_EXTRA_FLAGS FPD_EXTRA_FLAGS SNAPSHOT CL_GRPC_PORT CL_P2P_PORT \
-            CL_RPC_PORT CL_SIGNER_PORT RPC_PORT WS_PORT EOTSD_PORT FPD_PORT BABYLOND_HOST EOTSD_HOST DOMAIN RPC_HOST RPC_LB \
-            WS_HOST WS_LB MONITORING_PORT MONITORING_RPC_ENDPOINT MONITORING_VALIDATOR LOG_LEVEL \
-            SCRIPT_TAG ENV_VERSION )
   __old_vars=( )
   __new_vars=( )
 
   __var=ENV_VERSION
-  __target_ver=$(__get_value_from_env "${__var}" "default.env")
-  __source_ver=$(__get_value_from_env "${__var}" "${__env_file}")
+  __get_value_from_env "${__var}" "default.env" "__target_ver"
+  __get_value_from_env "${__var}" "${__env_file}" "__source_ver"
 
-  if [[ "${__target_ver}" -le "${__source_ver}" ]]; then # No changes in template, do nothing
+  if [ "${__debug}" -eq 1 ]; then  # Find any values in default.env that contain dashes
+    __error=0
+    while IFS= read -r __line; do
+      # Skip blank lines and comments
+      [[ -z "${__line}" || "${__line}" =~ ^# ]] && continue
+
+      # Warn on dash-containing variable names
+      if [[ "${__line}" =~ ^([A-Za-z0-9_-]+)= ]]; then
+        __varname="${BASH_REMATCH[1]}"
+        if [[ "${__varname}" = *-* ]]; then
+          echo "❌ Error: Variable '${__varname}' contains a dash and would not be usable in Bash."
+          (( ++__error ))
+        fi
+        if [[ "${__varname}" = "ENV_VERSION" ]]; then
+          continue
+        fi
+      else
+        continue  # Doesn't match variable assignment format
+      fi
+    done < "./default.env"
+    if [ "${__error}" -gt 0 ]; then
+      exit 1
+    fi
+  fi
+
+# shellcheck disable=SC2154
+  if [[ "${__keep_targets}" -eq 1 && "${__target_ver}" -le "${__source_ver}" ]]; then # No changes in template, do nothing
     return 0
   fi
 
-  echo "Migrating ${__env_file} to version ${__target_ver}"
+  if [ "${__keep_targets}" -eq 0 ]; then
+    echo "Refreshing build targets in ${__env_file}"
+  fi
+  if [[ "${__target_ver}" -gt "${__source_ver}" ]]; then
+    echo "Migrating ${__env_file} to version ${__target_ver}"
+  fi
+
   ${__as_owner} cp "${__env_file}" "${__env_file}".source
   __during_migrate=1
   __migrated=1
   ${__as_owner} cp default.env "${__env_file}"
+
   # Migrate over user settings
-  for __var in "${__all_vars[@]}"; do
-    __value=$(__get_value_from_env "${__var}" "${__env_file}.source")
-# Adjust for vars that are possibly empty
-    if [ -n "${__value}" ] || [ "${__var}" = "SNAPSHOT" ]; then
+  while IFS= read -r __line; do  # read default.env and process all variables in it
+    # Skip blank lines and comments
+    [[ -z "${__line}" || "${__line}" =~ ^# ]] && continue
+
+    if [[ "${__line}" =~ ^([A-Za-z0-9_-]+)= ]]; then
+      __var="${BASH_REMATCH[1]}"
+    else
+      continue  # Doesn't match variable assignment format
+    fi
+    if [[ "${__var}" = "ENV_VERSION" ]]; then
+      continue
+    fi
+
+    __get_value_from_env "${__var}" "${__env_file}.source" "__value"
+    if [ "${__found}" -eq 1 ]; then  # Only if variable isn't new in default.env
+      if [[ "${__keep_targets}" -eq 0 && "$__var" =~ (_TAG|_REPO|_DOCKERFILE)$ ]]; then
+        __get_value_from_env "${__var}" "default.env" "__value" # Reset build target to default.env value
+      fi
       # Handle & gracefully, as well as multi-line
       __update_value_in_env "${__var}" "$__value" "${__env_file}"
     fi
-  done
+  done < "./default.env"
+
   # Move value from old variable name(s) to new one(s)
   for __index in "${!__old_vars[@]}"; do
     __var=${__old_vars[__index]}
-    __value=$(__get_value_from_env "${__var}" "${__env_file}.source")
+    __get_value_from_env "${__var}" "${__env_file}.source" "__value"
     if [ -n "${__value}" ]; then
       __update_value_in_env "${__new_vars[__index]}" "$__value" "${__env_file}"
     fi
@@ -88,130 +169,157 @@ __docompose() {
 
 
 __get_value_from_env() {
-    local __var_name="$1"
-    local __env_file="$2"
-    local __value
+  # Call with variable name to read, env file name, and global variable to assign the value to
+  # Also sets global __found
+  local __var_name="$1"
+  local __env_file="$2"
+  local __output_var="$3"
+  local __output
+  local __parsed_value
 
-    __value=$(awk -v var="$__var_name" '
-        BEGIN { __found = 0; __value = "" }
+  if [[ "${__output_var}" = "__parsed_value" || "${__output_var}" = "__output_var" \
+      || "${__output_var}" = "__output" || "${__output_var}" = "__env_file" \
+      || "${__output_var}" = "__var_name" ]]; then
+    echo "__get_value_from_env was called with a conflicting output variable: $__output_var"
+    echo "This is a bug."
+    exit 70
+  fi
 
-        # Skip empty lines and comments
-        /^#|^\s*$/ {
-            next
-        }
+  __output=$(awk -v var="$__var_name" '
+    BEGIN { __found = 0; __value = "" }
 
-        # Match single-line unquoted value
-        $0 ~ "^[ \t]*"var"=[^\"].*$" {
-            gsub("^[ \t]*"var"=", "")
-            gsub(/^[ \t]*|[ \t]*$/, "", $0)
-            __value = $0
-            __found = 1
-            exit
-        }
+    # Skip empty lines and comments
+    /^#|^\s*$/ {
+      next
+    }
 
-        # Match a quoted single-line value
-        $0 ~ "^[ \t]*"var"=\"[^\"]*\"[ \t]*$" {
-            gsub("^[ \t]*"var"=\"", "")
-            gsub(/"[ \t]*$/, "", $0)
-            __value = "\"" $0 "\""
-            __found = 1
-            exit
-        }
+    # Match single-line unquoted value
+    $0 ~ "^[ \t]*"var"=[^\"].*$" {
+      gsub("^[ \t]*"var"=", "")
+      gsub(/^[ \t]*|[ \t]*$/, "", $0)
+      __value = $0
+      __found = 1
+      exit
+    }
 
-        # Match the start of a multi-line value (with opening quote)
-        $0 ~ "^[ \t]*"var"=\"[^\"]*$" {
-            gsub("^[ \t]*"var"=\"", "")
-            __value = "\"" $0 "\n"
-            __found = 1
-            next
-        }
+    # Match empty unquoted value
+    $0 ~ "^[ \t]*"var"=$" {
+       __value = ""
+       __found = 1
+       exit
+    }
 
-        # Continue collecting lines for a multi-line value
-        __found && !/"[ \t]*$/ {
-            __value = __value $0 "\n"
-            next
-        }
+    # Match a quoted single-line value
+    $0 ~ "^[ \t]*"var"=\"[^\"]*\"[ \t]*$" {
+      gsub("^[ \t]*"var"=\"", "")
+      gsub(/"[ \t]*$/, "", $0)
+      __value = "\"" $0 "\""
+      __found = 1
+      exit
+    }
 
-        # End of a multi-line value (with closing quote)
-        __found && /"[ \t]*$/ {
-            gsub(/[ \t]*"[ \t]*$/, "")
-            __value = __value $0 "\""
-            __found = 1
-            exit
-        }
+    # Match the start of a multi-line value (with opening quote)
+    $0 ~ "^[ \t]*"var"=\"[^\"]*$" {
+      gsub("^[ \t]*"var"=\"", "")
+      __value = "\"" $0 "\n"
+      __found = 1
+      next
+    }
 
-        END {
-            if (__found) {
-                # Print the value as is, including quotes for multi-line
-                print __value
-            }
-        }
-    ' "$__env_file")
+    # Continue collecting lines for a multi-line value
+    __found && !/"[ \t]*$/ {
+      __value = __value $0 "\n"
+      next
+    }
 
-    printf "%s" "$__value"
+    # End of a multi-line value (with closing quote)
+    __found && /"[ \t]*$/ {
+      gsub(/[ \t]*"[ \t]*$/, "")
+      __value = __value $0 "\""
+      __found = 1
+      exit
+    }
+
+    END {
+      # Print here-doc style so we can parse with awk
+      # Print the value as is, including quotes for multi-line
+      print "__value<<EOF"
+      print __value
+      print "EOF"
+      print "__found=" __found
+    }
+  ' "$__env_file")
+
+  # Parse __value using here-doc style
+  __parsed_value=$(awk '/^__value<<EOF$/ {getline; while ($0 != "EOF") { print; getline } }' <<< "$__output")
+  # Parse __found directly into a global variable
+  __found=$(awk -F= '/^__found=/ {print $2}' <<< "$__output")
+
+  # assign value to caller’s variable
+  printf -v "$__output_var" '%s' "$__parsed_value"
 }
 
 
 __update_value_in_env() {
 # Call as __update_value_in_env "$__var" "$__value" "$__env_file"
-    local __var_name="$1"
-    local __new_value="$2"
-    local __env_file="$3"
+  local __var_name="$1"
+  local __new_value="$2"
+  local __env_file="$3"
 
-    # Escape backslashes for safety
-    local __escaped_value
-    __escaped_value=$(printf '%s' "${__new_value}" | sed 's/\\/\\\\/g')
+  # Escape backslashes for safety
+  local __escaped_value
+  __escaped_value=$(printf '%s' "${__new_value}" | sed 's/\\/\\\\/g')
 
-    # Check if the variable already exists in the .env file
-    if grep -q "^[ \t]*${__var_name}=" "${__env_file}"; then
-        # Variable exists, update it
-        awk -v var="${__var_name}" -v new_value="${__escaped_value}" '
-            BEGIN { in_block = 0; multi_line = 0 }
+  # Check if the variable already exists in the .env file
+  if grep -q "^[ \t]*${__var_name}=" "${__env_file}"; then
+    # Variable exists, update it
+    awk -v var="${__var_name}" -v new_value="${__escaped_value}" '
+      BEGIN { in_block = 0; multi_line = 0 }
 
-            # Match the line that starts with the variable name
-            $0 ~ "^[ \t]*" var "=" {
-                # If the value starts with a quote, it may be a multi-line
-                if ($0 ~ "^[ \t]*" var "=\"") {
-                    # Start of multi-line value
-                    multi_line = 1
-                    # Print the variable name with the new value, replacing & safely
-                    gsub(/&/, "\\&", new_value)
-                    print var "=" new_value
-                } else {
-                    # Single-line value
-                    gsub(/&/, "\\&", new_value)
-                    print var "=" new_value
-                }
-                # Set the flag to indicate we are processing the target variable block
-                in_block = 1
-                next
-            }
+      # Match the line that starts with the variable name
+      $0 ~ "^[ \t]*" var "=" {
+        # If the value starts with a quote, it may be a multi-line
+        if ($0 ~ "^[ \t]*" var "=\"") {
+          # Start of multi-line value
+          multi_line = 1
+          # Print the variable name with the new value, replacing & safely
+          gsub(/&/, "\\&", new_value)
+          print var "=" new_value
+        } else {
+          # Single-line value
+          gsub(/&/, "\\&", new_value)
+          print var "=" new_value
+        }
+        # Set the flag to indicate we are processing the target variable block
+        in_block = 1
+        next
+      }
 
-            # If we encounter a new variable definition, stop skipping lines
-            /^[A-Z_][A-Z0-9_]*=/ && in_block {
-                in_block = 0
-                multi_line = 0
-            }
-            # Continue to skip lines in a multi-line block if multi_line is true
-            multi_line && !/"[ \t]*$/ {
-                next
-            }
+      # If we encounter a new variable definition, stop skipping lines
+      /^[A-Z_][A-Z0-9_]*=/ && in_block {
+        in_block = 0
+        multi_line = 0
+      }
+      # Continue to skip lines in a multi-line block if multi_line is true
+      multi_line && !/"[ \t]*$/ {
+        next
+      }
 
-            # If we reach the end of a multi-line value, reset flags
-            multi_line && /"[ \t]*$/ {
-                in_block = 0
-                multi_line = 0
-                next
-            }
+      # If we reach the end of a multi-line value, reset flags
+      multi_line && /"[ \t]*$/ {
+        in_block = 0
+        multi_line = 0
+        next
+      }
 
-            # Print all lines if not in the target variable block
-            { print }
-        ' "${__env_file}" | ${__as_owner} tee "${__env_file}.tmp" >/dev/null
-        ${__as_owner} mv "${__env_file}.tmp" "${__env_file}"
-    else
-        # Variable does not exist, append it
-        printf "%s=%s\n" "${__var_name}" "${__escaped_value}" | ${__as_owner} tee -a "${__env_file}" >/dev/null
-    fi
+      # Print all lines if not in the target variable block
+      { print }
+    ' "${__env_file}" | ${__as_owner} tee "${__env_file}.tmp" >/dev/null
+    ${__as_owner} mv "${__env_file}.tmp" "${__env_file}"
+  else
+    # Variable does not exist, append it
+    printf "%s=%s\n" "${__var_name}" "${__escaped_value}" | ${__as_owner} tee -a "${__env_file}" >/dev/null
+  fi
 }
 
 
@@ -219,7 +327,7 @@ __determine_distro() {
   # Determine OS platform
   __uname=$(uname | tr "[:upper:]" "[:lower:]")
   # If Linux, try to determine specific distribution
-  if [ "$__uname" == "linux" ]; then
+  if [ "$__uname" = "linux" ]; then
     # If available, use LSB to identify distribution
     if [ -n "$(which lsb_release 2>/dev/null)" ]; then
       __distro=$(lsb_release -i | cut -d: -f2 | sed s/'^\t'//)
@@ -231,7 +339,7 @@ __determine_distro() {
     __distro=""
   fi
   # For everything else (or if above failed), just use generic identifier
-  [ "$__distro" == "" ] && __distro=$__uname
+  [ "$__distro" = "" ] && __distro=$__uname
   unset __uname
   __distro=$(echo "$__distro" | tr "[:upper:]" "[:lower:]")
 
@@ -402,8 +510,6 @@ __check_for_snap() {
     echo "but in a nutshell \"$__me stop\" followed by \"sudo snap remove --purge docker\" followed by a reboot,"
     echo "and as needed install docker-ce or docker.io with apt."
     echo
-    echo "Do join us on CryptoManufaktur Discord to work through this issue."
-    echo
     echo "Aborting, this is not safe"
     exit 1
   fi
@@ -431,7 +537,7 @@ install() {
     fi
     if [ -z "$(which docker)" ]; then
       ${__auto_sudo} apt-get update && ${__auto_sudo} apt-get install -y ca-certificates curl gnupg \
-        chrony pkg-config
+        chrony pkg-config screen ncdu
       ${__auto_sudo} mkdir -p /etc/apt/keyrings
       ${__auto_sudo} curl -fsSL https://download.docker.com/linux/ubuntu/gpg | ${__auto_sudo} gpg --dearmor -o /etc/apt/keyrings/docker.gpg
       ${__auto_sudo} echo \
@@ -440,6 +546,7 @@ install() {
       ${__auto_sudo} apt-get update
       ${__auto_sudo} apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin \
         docker-buildx-plugin
+      ${__auto_sudo} systemctl start systemd-logind
       echo "Installed docker-ce and docker-compose-plugin"
     else
       echo "Docker is already installed"
@@ -455,7 +562,7 @@ install() {
   elif [[ "$__distro" =~ "debian" ]]; then
     if [ -z "$(which docker)" ]; then
       ${__auto_sudo} apt-get update
-      ${__auto_sudo} apt-get -y install ca-certificates curl gnupg chrony pkg-config
+      ${__auto_sudo} apt-get -y install ca-certificates curl gnupg chrony pkg-config screen ncdu
       if [ "${__os_major_version}" -lt 11 ]; then
         echo "${__project_name} cannot install Docker on Debian ${__os_major_version}."
         echo "Consider upgrading to 11 and then 12."
@@ -469,6 +576,7 @@ install() {
       ${__auto_sudo} apt-get update
       ${__auto_sudo} apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin \
         docker-buildx-plugin
+      ${__auto_sudo} systemctl start systemd-logind
       echo "Installed docker-ce and docker-compose-plugin"
     else
       echo "Docker is already installed"
@@ -490,7 +598,7 @@ install() {
 
 
 __get_docker_free_space() { # set __free_space to what's available to Docker
-  if [[ "$OSTYPE" == "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
+  if [[ "$OSTYPE" = "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
     __free_space=$(__dodocker run --rm -v macos-space-check:/dummy busybox df -P /dummy | awk '/[0-9]%/{print $(NF-2)}')
   else
     __docker_dir=$(__dodocker system info --format '{{.DockerRootDir}}')
@@ -500,7 +608,7 @@ __get_docker_free_space() { # set __free_space to what's available to Docker
   __regex='^[0-9]+$'
   if ! [[ "${__free_space}" =~ $__regex ]] ; then
     echo "Unable to determine free disk space. This is likely a bug."
-    if [[ "$OSTYPE" == "darwin"* ]]; then
+    if [[ "$OSTYPE" = "darwin"* ]]; then
       echo "df reports $(__dodocker run --rm -v macos-space-check:/dummy busybox df -P /dummy) and __free_space is ${__free_space}"
     else
       echo "df reports $(df -P "${__docker_dir}") and __free_space is ${__free_space}"
@@ -511,7 +619,7 @@ __get_docker_free_space() { # set __free_space to what's available to Docker
 
 
 __display_docker_dir() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
+  if [[ "$OSTYPE" = "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
     echo "Here's total and used space on Docker's virtual volume"
     __dodocker run --rm -v macos-space-check:/dummy busybox df -h /dummy
   else
@@ -528,10 +636,21 @@ __display_docker_volumes() {
     echo
   else
     echo "Here are the Docker volumes used by this copy of ${__project_name} and their space usage:"
-    __dodocker system df -v | grep -A 50 "VOLUME NAME" | grep "^$(basename "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
+    __dodocker system df -v | grep -A 500 "VOLUME NAME" | grep "^$(basename "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
     echo
   fi
-  echo "If there is some mystery space being taken up, try \"sudo ncdu /\"."
+  if command -v ncdu >/dev/null 2>&1; then
+    echo "If there is some mystery space being taken up, try \"sudo ncdu /\"."
+  else
+    echo "If there is some mystery space being taken up, install ncdu, then try \"sudo ncdu /\"."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      echo "To install ncdu, run \"brew install ncdu\"."
+    elif [[ "$__distro" = "ubuntu" || "$__distro" =~ "debian" ]]; then
+      echo "To install ncdu, run \"sudo apt update && sudo apt install ncdu\"."
+    else
+      echo "How to install ncdu will be specific to your distribution ${__distro}."
+    fi
+  fi
   echo
 }
 
@@ -539,7 +658,7 @@ __display_docker_volumes() {
 space() {
   __get_docker_free_space
   echo
-  if [[ "$OSTYPE" == "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
+  if [[ "$OSTYPE" = "darwin"* ]]; then # macOS doesn't expose docker root dir to the OS
     echo "You have $(( __free_space / 1024 / 1024 )) GiB free for Docker volumes"
   else
     echo "You have $(( __free_space / 1024 / 1024 )) GiB free on ${__docker_dir}"
@@ -550,7 +669,7 @@ space() {
 }
 
 
-# Warn user if space is low, so they can prune
+# Warn user if space is low
 __check_disk_space() {
   __get_docker_free_space
 
@@ -559,9 +678,6 @@ __check_disk_space() {
     echo "You have less than 50 GiB of free disk space:"
     echo
     __display_docker_dir
-    echo
-    echo "Pruning does not appear an option for your client mix."
-    echo "If total space is less than 1.8 TiB, consider cloning to a larger drive."
     __display_docker_volumes
   fi
 }
@@ -596,6 +712,18 @@ __pull_and_build() {
 # Arguments are passed, but shellcheck doesn't recognize that
 # shellcheck disable=SC2120
 update() {
+# Only one copy of update() should run per stack
+  local __script_dir
+  __script_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+  local __uniq_id="${__script_dir//\//_}"
+  local __lock_file="${__uniq_id}_lock"
+  ${__as_owner} touch "/tmp/${__lock_file}"
+  exec 200<"/tmp/${__lock_file}"
+  if ! flock -n 200; then
+    echo "Another instance of \"${__me} update\" is running. Aborting."
+    exit 1
+  fi
+
   __during_update=1
   if [[ $(${__as_owner} git status --porcelain) ]]; then
     __dirty=1
@@ -627,7 +755,7 @@ update() {
     set +e
     ${__as_owner} git config pull.rebase false
     __var="SCRIPT_TAG"
-    __value=$(__get_value_from_env "${__var}" "${__env_file}")
+    __get_value_from_env "${__var}" "${__env_file}" "__value"
     if [ -z "${__value}" ] || [ "${__value}" = "latest" ]; then
       export ETHDPINNED=""
       __branch=$(git rev-parse --abbrev-ref HEAD)
@@ -648,12 +776,44 @@ update() {
     exec "${BASH_SOURCE[0]}" update "$@"
   fi
 
+  __keep_targets=1
+  __debug=0
+  while :
+  do
+    if [ -z "${1+x}" ]; then
+      break
+    fi
+    case "$1" in
+      --refresh-targets | --reset-targets)
+        __keep_targets=0
+        shift
+        ;;
+      --non-interactive)
+        __non_interactive=1
+        shift
+        ;;
+      --debug)
+        __debug=1
+        shift
+        ;;
+      *)
+        echo "Error: Unknown option: $1" >&2
+        shift
+        ;;
+    esac
+  done
+  if [ "${ETHD_FRONTEND:-}" = "noninteractive" ]; then
+    __non_interactive=1
+  fi
+
   __env_migrate
+  if [ "${__migrated}" -eq 1 ] && ! cmp -s "${__env_file}" "${__env_file}".source; then  # Create .bak early
+    ${__as_owner} cp "${__env_file}".source "${__env_file}".bak
+  fi
   __pull_and_build
 
   if [ "${__migrated}" -eq 1 ] && ! cmp -s "${__env_file}" "${__env_file}".source; then
-    cp "${__env_file}".source "${__env_file}".bak
-    rm "${__env_file}".source
+    ${__as_owner} rm "${__env_file}".source  # .bak was created earlier
     echo "Your ${__env_file} configuration settings have been migrated to a fresh copy. You can \
 find the original contents in ${__env_file}.bak."
     echo
@@ -697,23 +857,15 @@ find the original contents in ${__env_file}.bak."
     echo "${__project_name} version is pinned to ${ETHDPINNED} in \".env\"."
     echo "Please make sure to run compatible client versions."
   fi
+# Release lock and remove lock file
+  exec 200<&-
+  ${__as_owner} rm -f "/tmp/${__lock_file}"
   __during_update=0
-}
-
-
-__prep_conffiles() {
-  # Adjust - this is where sample files would be copied to config files that are meant to be bind-mounted
-  return
 }
 
 
 upgrade() {
   update
-}
-
-
-start() {
-  __docompose up -d --remove-orphans "$@"
 }
 
 
@@ -788,6 +940,16 @@ __handle_error() {
 
   local __exit_code=$1
   local __line_no=$2
+  if [ "$__exit_code" -eq 0 ]; then
+    return 0
+  fi
+
+  if [[ -n "${__handler_ran:-}" ]]; then
+    return 0
+  fi
+  __handler_ran=1
+
+  echo
   if [ "$__exit_code" -eq 130 ]; then
     echo "$__me terminated by user"
   else
@@ -806,7 +968,24 @@ __handle_error() {
 }
 
 
-help() {
+__update_help() {
+  echo "usage: $__me update [--refresh-targets] [--non-interactive] [--debug]"
+  echo
+  echo "Updates Eth Docker itself, as required the contents of \".env\", and the clients."
+  echo
+  echo "A combination of \"git pull\" for Eth Docker, some bash scripting to bring new variables from \"default.env\","
+  echo "and \"docker compose pull\" as well as \"docker compose build\" for the clients."
+  echo
+  echo "If warranted, will also offer resync when clients require it, or upgrade of PostgreSQL version."
+  echo
+  echo "\"--refresh-targets\" sets Docker tags, source targets, and repos of clients back to the defaults in \"default.env\"."
+  echo "\"--non-interactive\" does not ask questions and assumes Yes for database resyncs and migrations."
+  echo "\"--debug\" handles some CI sanity checks."
+  echo
+}
+
+
+__full_help() {
   echo "usage: ${__me} [-h|--help] <command>"
   echo
   echo "commands:"
@@ -844,6 +1023,14 @@ help() {
 }
 
 
+help() {
+  case $* in
+    *update*) __update_help;;
+    *) __full_help;;
+  esac
+}
+
+
 # Main body from here
 __env_file=.env
 __during_update=0
@@ -852,10 +1039,10 @@ __migrated=0
 __command=""
 __me="./$(basename "${BASH_SOURCE[0]}")"
 
-trap '__handle_error $? $LINENO' ERR
+trap '__handle_error $? $LINENO' ERR EXIT
 
-if [[ "$#" -eq 0 || "$1" == "-h" || "$1" == "--help" ]]; then
-  help
+if [[ "$#" -eq 0 || "$*" = "--help" || "$*" = "-h" || "$*" = "update --help" || "$*" = "update -h" ]]; then
+  help "$@"
   exit 0
 fi
 
@@ -864,7 +1051,7 @@ cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 # shellcheck disable=SC2012
 OWNER=$(ls -ld . | awk '{print $3}')
 
-if [ "${OWNER}" == "root" ]; then
+if [ "${OWNER}" = "root" ]; then
   echo "Please install ${__project_name} as a non-root user."
   exit 0
 fi
