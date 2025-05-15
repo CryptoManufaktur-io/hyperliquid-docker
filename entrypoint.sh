@@ -6,20 +6,20 @@ echo "Selected CHAIN: $CHAIN"
 # Debug: Log COMPOSE_FILE
 echo "COMPOSE_FILE: $COMPOSE_FILE"
 
-# Determine RUN_MODE based on COMPOSE_FILE or environment variable
-if [ -z "$RUN_MODE" ]; then
+# Determine NODE_TYPE based on environment variable or COMPOSE_FILE
+if [ -z "$NODE_TYPE" ]; then
   if [ "$COMPOSE_FILE" = "hyperliquid-validator.yml" ]; then
-    RUN_MODE="validator"
+    NODE_TYPE="validator"
   elif [ "$COMPOSE_FILE" = "hyperliquid-non-validator.yml" ]; then
-    RUN_MODE="non-validator"
+    NODE_TYPE="non-validator"
   else
-    echo "Warning: COMPOSE_FILE is not set or unrecognized. Defaulting to 'non-validator'."
-    RUN_MODE="non-validator"
+    echo "Warning: NODE_TYPE not set and COMPOSE_FILE is not recognized. Defaulting to 'non-validator'."
+    NODE_TYPE="non-validator"
   fi
 fi
 
-# Debug: Log the selected RUN_MODE
-echo "RUN_MODE: $RUN_MODE"
+# Debug: Log the selected NODE_TYPE
+echo "NODE_TYPE: $NODE_TYPE"
 
 # Determine which visor binary to use and link it
 VISOR_BINARY="/home/hluser/hl-visor-$(echo "$CHAIN" | tr "[:upper:]" "[:lower:]")"
@@ -68,19 +68,20 @@ fi
 echo "VALIDATOR_PRIVATE_KEY: $VALIDATOR_PRIVATE_KEY"
 
 # Create node_config.json only for validator mode
-if [ "$RUN_MODE" = "validator" ]; then
+if [ "$NODE_TYPE" = "validator" ]; then
   if [ -n "$VALIDATOR_PRIVATE_KEY" ]; then
     echo "{\"key\": \"$VALIDATOR_PRIVATE_KEY\"}" > /home/hluser/hl/hyperliquid_data/node_config.json
     echo "Created /home/hluser/hl/hyperliquid_data/node_config.json with content: $(cat /home/hluser/hl/hyperliquid_data/node_config.json)"
   else
-    echo "Warning: VALIDATOR_PRIVATE_KEY is not set. Skipping node_config.json creation."
+    echo "Error: VALIDATOR_PRIVATE_KEY is not set but NODE_TYPE is 'validator'. Cannot proceed."
+    exit 1
   fi
 else
-  echo "RUN_MODE is non-validator. Skipping node_config.json creation."
+  echo "NODE_TYPE is non-validator. Skipping node_config.json creation."
 fi
 
 # Execute the hl-visor command
-CMD="/home/hluser/hl-visor run-$RUN_MODE --replica-cmds-style recent-actions"
+CMD="/home/hluser/hl-visor run-$NODE_TYPE --replica-cmds-style recent-actions"
 if [ "$ENABLE_RPC" = "true" ]; then
   CMD="$CMD --serve-eth-rpc"
 fi
