@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Set your RPC URLs
 LOCAL_RPC="http://localhost:3001/evm"
 

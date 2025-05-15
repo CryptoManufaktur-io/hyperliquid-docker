@@ -22,7 +22,7 @@ version() {
 # Adjust for your clients and how to check their version
   case "${__value}" in
     *hyperliquid.yml* )
-      __docompose exec consensus /home/$USERNAME/hl-visor --version
+      __docompose exec consensus /home/"$USERNAME"/hl-visor --version
       ;;&
   esac
 }
