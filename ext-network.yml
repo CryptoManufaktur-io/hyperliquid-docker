@@ -1,15 +1,4 @@
-version: '3.4'
-
-services:
-  node:
-    networks:
-      - default
-      - traefik-shared
-
 networks:
   default:
     name: ${DOCKER_EXT_NETWORK:-traefik_default}
     external: true
-  traefik-shared:
-    external: true
-    name: traefik_default
