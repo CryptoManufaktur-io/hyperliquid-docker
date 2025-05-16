@@ -1,6 +1,4 @@
-# Include this file in COMPOSE_FILE and set EXPOSE_RPC=true in .env to expose the ETH RPC port
 services:
-  node:
+  consensus:
     ports:
-      - "${ETH_RPC_PORT:-3001}:${ETH_RPC_PORT:-3001}"   # ETH RPC Port
-    # Gossip ports are now always exposed in hyperliquid.yml
+      - ${EVM_RPC_PORT:-3001}:${EVM_RPC_PORT:-3001}/tcp

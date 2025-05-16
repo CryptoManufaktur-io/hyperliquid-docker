@@ -1,0 +1,68 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  consensus:
+    build:
+      context: ./hyperliquid
+      args:
+        - PUB_KEY_URL=${PUB_KEY_URL}
+        - USERNAME=${USERNAME:-hyperliquid}
+        - CHAIN=${CHAIN:-Mainnet}
+    image: hyperliquid:local
+    user: "${USERNAME:-hyperliquid}"
+    restart: unless-stopped
+    environment:
+      - CHAIN=${CHAIN:-Mainnet}
+      - NODE_TYPE=${NODE_TYPE:-non-validator}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - ENABLE_EVM_RPC=${ENABLE_EVM_RPC:-false}
+      - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY:-}
+      - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
+      - EXTRA_FLAGS=${EXTRA_FLAGS:-}
+    ports:
+      - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/tcp
+    <<: *logging
+    volumes:
+      - consensus-data:/home/${USERNAME}/hl/data
+    entrypoint: ["docker-entrypoint.sh"]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${RPC_HOST}.service=${RPC_HOST}
+      - traefik.http.routers.${RPC_HOST}.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST}.rule=Host(`${RPC_HOST}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${RPC_HOST}lb.service=${RPC_HOST}
+      - traefik.http.routers.${RPC_HOST}lb.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST}lb.rule=Host(`${RPC_LB}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST}lb.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST}.loadbalancer.server.port=${EVM_RPC_PORT}
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=${EVM_RPC_PORT}
+      - metrics.instance=${RPC_HOST}
+      - metrics.network=${CHAIN}
+
+  pruner:
+    build:
+      context: ./pruner
+      args:
+        - USERNAME=${USERNAME:-hyperliquid}
+    image: hyperliquid-pruner:local
+    user: root
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - consensus-data:/home/${USERNAME}/hl/data
+    depends_on:
+      - consensus
+    <<: *logging
+
+volumes:
+  consensus-data:

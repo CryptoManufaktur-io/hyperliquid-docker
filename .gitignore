@@ -1,5 +1,7 @@
 .env
 hyperliquid-data/
+*.crt
+*-dev
 *.swp
 *.swo
 *~
