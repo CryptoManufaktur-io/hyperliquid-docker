@@ -23,6 +23,7 @@ if [ "${CHAIN}" = "Testnet" ]; then
 EOF
   else
     echo "Info: Using default peers for CHAIN=Testnet" >&2
+    rm -f "$HOME"/override_gossip_config.json
   fi
 fi
 
