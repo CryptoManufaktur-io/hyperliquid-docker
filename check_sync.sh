@@ -1,34 +1,48 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-# Set your RPC URLs
+# ——————— Load .env and export everything ———————
+set -o allexport
+source "$(dirname "$0")/.env"
+set +o allexport
+
+# ——————— Define RPCs ———————
 LOCAL_RPC="http://localhost:3001/evm"
 
-# Testnet: https://rpc.hyperliquid-testnet.xyz/evm
-# Mainnet: https://rpc.hyperliquid.xyz/evm
-PUBLIC_RPC="https://rpc.hyperliquid.xyz/evm"
+# choose public RPC based on CHAIN
+case "${CHAIN}" in
+  Testnet)
+    PUBLIC_RPC="https://rpc.hyperliquid-testnet.xyz/evm"
+    ;;
+  Mainnet)
+    PUBLIC_RPC="https://rpc.hyperliquid.xyz/evm"
+    ;;
+  *)
+    echo "❌ Invalid CHAIN value: '$CHAIN'. Must be 'Testnet' or 'Mainnet'."
+    exit 1
+    ;;
+esac
 
-# Fetch your node’s latest block
-LOCAL_HEX=$(curl -s -X POST $LOCAL_RPC \
+# ——————— Query blocks ———————
+LOCAL_HEX=$(curl -s -X POST "$LOCAL_RPC" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
   | jq -r '.result')
 
-# Fetch the public head block
-PUBLIC_HEX=$(curl -s -X POST $PUBLIC_RPC \
+PUBLIC_HEX=$(curl -s -X POST "$PUBLIC_RPC" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
   | jq -r '.result')
 
-# Convert hex to decimal
-LOCAL=$(printf "%d\n" $((LOCAL_HEX)))
-PUBLIC=$(printf "%d\n" $((PUBLIC_HEX)))
+# ——————— Convert and compare ———————
+LOCAL=$(printf "%d\n" "$((LOCAL_HEX))")
+PUBLIC=$(printf "%d\n" "$((PUBLIC_HEX))")
 
-# Print and compare
 echo "Local node:   $LOCAL"
 echo "Public head:  $PUBLIC"
 
-if [ "$LOCAL" -ge "$PUBLIC" ]; then
+if (( LOCAL >= PUBLIC )); then
   echo "✅ Your node is in sync (or ahead!)"
 else
-  echo "⚠️  Your node is $((PUBLIC-LOCAL)) blocks behind"
+  echo "⚠️  Your node is $((PUBLIC - LOCAL)) blocks behind"
 fi
