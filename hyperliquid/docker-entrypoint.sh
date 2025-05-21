@@ -5,7 +5,7 @@ set -e
 : "${NODE_TYPE:=non-validator}"
 
 # Create override_gossip_config.json for mainnet only
-if [ "${CHAIN}" = "mainnet" ]; then
+if [ "${CHAIN}" = "Mainnet" ]; then
   if [ -n "$MAINNET_ROOT_IPS" ] && [ "$MAINNET_ROOT_IPS" != "[]" ]; then
     cat > "$HOME/override_gossip_config.json" <<EOF
 { "root_node_ips": $MAINNET_ROOT_IPS, "try_new_peers": false, "chain": "Mainnet" }
