@@ -1,13 +1,36 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Removed strict mode to see more errors
+# set -euo pipefail
 
 # ——————— Load .env and export everything ———————
+echo "Loading environment variables..."
 set -o allexport
-source "$(dirname "$0")/.env"
+if [ -f "$(dirname "$0")/.env" ]; then
+  source "$(dirname "$0")/.env"
+  echo "Loaded .env file"
+else
+  echo "Error: .env file not found"
+  # Try to load from default.env instead
+  if [ -f "$(dirname "$0")/default.env" ]; then
+    source "$(dirname "$0")/default.env"
+    echo "Loaded default.env file instead"
+  else
+    echo "Error: default.env file not found either"
+    exit 1
+  fi
+fi
 set +o allexport
+
+# Check if CHAIN variable is set
+if [ -z "${CHAIN+x}" ]; then
+  echo "Error: CHAIN variable is not set in the environment file"
+  exit 1
+fi
+echo "CHAIN is set to: $CHAIN"
 
 # ——————— Define RPCs ———————
 LOCAL_RPC="http://localhost:3001/evm"
+echo "Local RPC endpoint: $LOCAL_RPC"
 
 # choose public RPC based on CHAIN
 case "${CHAIN}" in
@@ -22,6 +45,7 @@ case "${CHAIN}" in
     exit 1
     ;;
 esac
+echo "Public RPC endpoint: $PUBLIC_RPC"
 
 # ——————— Query blocks ———————
 LOCAL_HEX=$(curl -s -X POST "$LOCAL_RPC" \
