@@ -38,8 +38,8 @@ PUBLIC_HEX=$(curl -s -X POST "$PUBLIC_RPC" \
 LOCAL=$(printf "%d\n" "$((LOCAL_HEX))")
 PUBLIC=$(printf "%d\n" "$((PUBLIC_HEX))")
 
-echo "Local node:   $LOCAL"
-echo "Public head:  $PUBLIC"
+echo "$CHAIN Local node:   $LOCAL"
+echo "$CHAIN Public head:  $PUBLIC"
 
 if (( LOCAL >= PUBLIC )); then
   echo "✅ Your node is in sync (or ahead!)"
