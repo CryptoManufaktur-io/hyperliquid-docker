@@ -30,7 +30,7 @@ services:
       - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/tcp
     <<: *logging
     volumes:
-      - consensus-data:/home/${USERNAME}/hl/data
+      - consensus-data:/home/${USERNAME}/hl
     entrypoint: ["docker-entrypoint.sh"]
     labels:
       - traefik.enable=true
@@ -60,10 +60,29 @@ services:
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - consensus-data:/home/${USERNAME}/hl/data
+      - consensus-data:/home/${USERNAME}/hl
     depends_on:
       - consensus
     <<: *logging
+
+  print-validator-key:
+    profiles: ["tools"]
+    build:
+      context: ./hyperliquid
+      args:
+        - PUB_KEY_URL=${PUB_KEY_URL}
+        - USERNAME=${USERNAME:-hyperliquid}
+        - CHAIN=${CHAIN:-Mainnet}
+    image: hyperliquid:local
+    user: "${USERNAME:-hyperliquid}"
+    pull_policy: never
+    volumes:
+      - consensus-data:/home/${USERNAME}/hl
+    entrypoint: ["/bin/bash","-c"]
+    command:
+      - |
+        echo "Validator public address:"
+        "$HOME"/hl-visor --chain "${CHAIN}" --key "${VALIDATOR_PRIVATE_KEY}" print-address
 
 volumes:
   consensus-data:
