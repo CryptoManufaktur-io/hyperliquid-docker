@@ -64,7 +64,7 @@ When you first start the node, the container will:
 *   **Initialize the node** based on the `CHAIN` variable ("Mainnet" or "Testnet").
 *   **Configure the appropriate peers** based on `MAINNET_ROOT_IPS` for Mainnet or `TESTNET_ROOT_IPS` for Testnet.
 *   **Download and verify the hl-visor binary** using the official GPG key from `PUB_KEY_URL`.
-*   If `NODE_TYPE` is set to "validator", a node configuration file will be created with the provided private key. You can generate a private key using `openssl rand -hex 32` if needed.
+*   If `NODE_TYPE` is set to "validator", a node configuration file will be created with the provided private key. You can generate a private key using `openssl rand -hex 32` if needed. The system will automatically display the corresponding public address during startup.
 
 ## Data Pruning
 
