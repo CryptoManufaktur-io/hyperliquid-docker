@@ -82,7 +82,7 @@ services:
     command:
       - |
         echo "Validator public address:"
-        home/${USERNAME}/hl/hl-visor --chain "${CHAIN}" --key "${VALIDATOR_PRIVATE_KEY}" print-address
+        home/${USERNAME}/hl-visor --chain "${CHAIN}" --key "${VALIDATOR_PRIVATE_KEY}" print-address
 
 volumes:
   consensus-data:
