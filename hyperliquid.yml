@@ -15,6 +15,7 @@ services:
         - USERNAME=${USERNAME:-hyperliquid}
         - CHAIN=${CHAIN:-Mainnet}
     image: hyperliquid:local
+    pull_policy: never
     user: "${USERNAME:-hyperliquid}"
     restart: unless-stopped
     environment:
@@ -55,6 +56,7 @@ services:
       args:
         - USERNAME=${USERNAME:-hyperliquid}
     image: hyperliquid-pruner:local
+    pull_policy: never
     user: root
     restart: unless-stopped
     environment:
