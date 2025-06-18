@@ -72,6 +72,65 @@ The setup includes a `pruner` service that automatically removes old blockchain 
 *   **Schedule:** Controlled by the cron job in the pruner container, which runs at 3 AM daily (`0 3 * * *`).
 *   **Implementation:** Uses the official Hyperliquid pruning script to safely remove historical data while maintaining node functionality.
 
+## Monitoring
+
+The setup includes a monitoring service that collects and exposes metrics for your Hyperliquid node. This helps you track the health and performance of your node.
+
+### Enabling Monitoring
+
+1. **Include the monitoring compose file:**
+   Ensure that `:monitoring.yml` is included in your `COMPOSE_FILE` setting in the `.env` file:
+   ```env
+   COMPOSE_FILE=hyperliquid.yml:monitoring.yml
+   ```
+
+2. **Configure monitoring settings:**
+   In your `.env` file, set the following parameters:
+   ```env
+   NODE_ALIAS=your-node-name     # A descriptive name for your node
+   MONITORING_PORT=8086          # The port on which metrics will be exposed
+   LOG_LEVEL=info                # Log level for the monitoring service
+   ```
+
+3. **Start the monitoring service:**
+   When you run `./hld up -d`, the monitoring service will start automatically.
+
+### Accessing Metrics
+
+The monitoring service exposes Prometheus metrics on port 8086 (or your configured `MONITORING_PORT`). You can access these metrics at:
+```
+http://your-server-ip:8086/metrics
+```
+
+### Visualizing Metrics with Grafana
+
+To visualize the metrics collected:
+
+1. **Set up Prometheus:**
+   Configure Prometheus to scrape metrics from your node's monitoring endpoint.
+
+2. **Import the dashboard:**
+   - Download the pre-configured Grafana dashboard from [hyperliquid-exporter/grafana/grafana.json](https://github.com/validaoxyz/hyperliquid-exporter/blob/main/grafana/grafana.json)
+   - In Grafana, go to Dashboard → Import and upload the JSON file
+   - Select your Prometheus data source
+
+### Available Metrics
+
+The monitoring service collects various metrics, including:
+
+* **Block metrics:** Height, time, lag, proposer statistics
+* **Node status:** Software version, sync status
+* **Validator metrics:** Status, jailing information, stake distribution
+* **EVM metrics:** Transaction throughput and performance
+
+### Integration with Existing Monitoring Stack
+
+If you're using [central-proxy-docker](https://github.com/CryptoManufaktur-io/central-proxy-docker), the monitoring service is automatically configured for discovery through the `metrics.*` labels.
+
+### External Monitoring Services
+
+A sample public dashboard is available at [ValiDAO Hyperliquid Testnet Monitor](https://hyperliquid-testnet-monitor.validao.xyz/public-dashboards/ff0fbe53299b4f95bb6e9651826b26e0).
+
 ## Traefik Integration
 
 If you include `:ext-network.yml` in your `COMPOSE_FILE` and configure `DOMAIN`, `RPC_HOST`, and `RPC_LB` in `.env`, the consensus service will be labeled for discovery by a Traefik instance running on the `DOCKER_EXT_NETWORK`. This provides secure, proxied access (HTTPS) to the node's EVM RPC endpoint.

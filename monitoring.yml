@@ -1,0 +1,39 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  monitoring:
+    build:
+      context: ./monitoring
+    image: hyperliquid-monitoring:local
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - consensus-data:/home/${USERNAME}:ro
+    expose:
+      - "${MONITORING_PORT:-8086}"
+    entrypoint:
+      - hl_exporter
+      - start
+      - --log-level=${LOG_LEVEL:-info}
+      - --chain=${CHAIN}
+      - --alias=${NODE_ALIAS:-local}
+      - --node-home=/home/${USERNAME}/hl
+      - --node-binary=/home/${USERNAME}/hl-node
+    depends_on:
+      - consensus
+    <<: *logging
+    labels:
+        - traefik.enable=false
+        - metrics.scrape=true
+        - metrics.path=/metrics
+        - metrics.port=${MONITORING_PORT:-8086}
+        - metrics.instance=hyperliquid-monitoring
+        - metrics.network=${CHAIN}
