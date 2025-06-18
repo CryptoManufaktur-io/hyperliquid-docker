@@ -10,7 +10,7 @@ services:
     volumes:
       - consensus-data:/home/${USERNAME}:ro
     expose:
-      - "8086"
+      - "${MONITORING_PORT:-8086}"
     entrypoint:
       - hl_exporter
       - start
@@ -21,3 +21,10 @@ services:
       - --node-binary=/home/${USERNAME}/hl-node
     depends_on:
       - consensus
+    labels:
+        - traefik.enable=false
+        - metrics.scrape=true
+        - metrics.path=/metrics
+        - metrics.port=${MONITORING_PORT:-8086}
+        - metrics.instance=hyperliquid-monitoring
+        - metrics.network=${CHAIN}
