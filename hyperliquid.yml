@@ -31,7 +31,7 @@ services:
       - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/tcp
     <<: *logging
     volumes:
-      - consensus-data:/home/${USERNAME}/hl/data
+      - consensus-data:/home/${USERNAME}
     entrypoint: ["docker-entrypoint.sh"]
     labels:
       - traefik.enable=true
@@ -62,7 +62,7 @@ services:
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - consensus-data:/home/${USERNAME}/hl/data
+      - consensus-data:/home/${USERNAME}
     depends_on:
       - consensus
     <<: *logging

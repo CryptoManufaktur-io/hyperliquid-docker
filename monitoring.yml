@@ -1,0 +1,23 @@
+services:
+  monitoring:
+    build:
+      context: ./monitoring
+    image: hyperliquid-monitoring:local
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - consensus-data:/home/${USERNAME}:ro
+    expose:
+      - "8086"
+    entrypoint:
+      - hl_exporter
+      - start
+      - --log-level=${LOG_LEVEL:-info}
+      - --chain=${CHAIN}
+      - --alias=${NODE_ALIAS:-local}
+      - --node-home=/home/${USERNAME}/hl
+      - --node-binary=/home/${USERNAME}/hl-node
+    depends_on:
+      - consensus
