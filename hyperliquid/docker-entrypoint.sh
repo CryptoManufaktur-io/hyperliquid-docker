@@ -36,9 +36,6 @@ if [ "$NODE_TYPE" = "validator" ]; then
   cat > "$HOME/hl/hyperliquid_data/node_config.json" <<EOF
 { "key": "$VALIDATOR_PRIVATE_KEY" }
 EOF
-  # Print the validator public address
-  echo "Validator public address:"
-  "$HOME"/hl-visor --chain "${CHAIN}" --key "${VALIDATOR_PRIVATE_KEY}" print-address
 fi
 
 # Base run command
