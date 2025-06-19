@@ -4,7 +4,7 @@ RUN apk add git
 
 WORKDIR /app
 
-RUN git clone https://github.com/validaoxyz/hyperliquid-exporter .
+RUN git clone https://github.com/CryptoManufaktur-io/hyperliquid-exporter .
 
 RUN go mod download
 RUN mkdir ./bin

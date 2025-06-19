@@ -16,7 +16,7 @@ services:
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
-      - consensus-data:/home/${USERNAME}:ro
+      - consensus-data:/home/hyperliquid:ro
     expose:
       - "${MONITORING_PORT:-8086}"
     entrypoint:
@@ -25,8 +25,8 @@ services:
       - --log-level=${LOG_LEVEL:-info}
       - --chain=${CHAIN}
       - --alias=${NODE_ALIAS:-local}
-      - --node-home=/home/${USERNAME}/hl
-      - --node-binary=/home/${USERNAME}/hl-node
+      - --node-home=/home/hyperliquid/hl
+      - --node-binary=/home/hyperliquid/hl-node
     depends_on:
       - consensus
     <<: *logging
