@@ -36,6 +36,9 @@ if [ "$NODE_TYPE" = "validator" ]; then
   cat > "$HOME/hl/hyperliquid_data/node_config.json" <<EOF
 { "key": "$VALIDATOR_PRIVATE_KEY" }
 EOF
+  echo "✅  Wrote validator key to $HOME/hl/hyperliquid_data/node_config.json"
+else
+  rm -rf "$HOME/hl/hyperliquid_data/node_config.json"
 fi
 
 # Base run command
