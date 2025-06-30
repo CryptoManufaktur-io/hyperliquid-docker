@@ -67,5 +67,40 @@ services:
       - consensus
     <<: *logging
 
+
+  validator-info:
+    profiles: ["tools"]
+    image: curlimages/curl:latest
+    user: root
+    container_name: validator-info
+    environment:
+      - CHAIN=${CHAIN:-Testnet}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+          # 1) Install deps (quietly)
+          apk add --no-cache bash jq >/dev/null
+
+          # 2) Re-exec into Bash and run the real work
+          exec /bin/bash -c '
+            echo "CHAIN set to: ${CHAIN:-Testnet}"
+
+            if [ "${CHAIN:-Testnet}" = "Mainnet" ]; then
+              URL="https://api.hyperliquid.xyz/info"
+            else
+              URL="https://api/hyperliquid-testnet.xyz/info"
+            fi
+
+            echo "Querying validator summaries from: $URL"
+            curl -sS -X POST -H "Content-Type: application/json" \
+                --data "{\"type\":\"validatorSummaries\"}" "$URL" | jq .
+
+            echo "Done."
+          '
+    <<: *logging
+
+
+
 volumes:
   consensus-data:
