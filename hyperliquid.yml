@@ -100,6 +100,43 @@ services:
           '
     <<: *logging
 
+  cli:
+    profiles: ["tools"]
+    build:
+      context: ./hyperliquid
+      args:
+        - PUB_KEY_URL=${PUB_KEY_URL}
+        - USERNAME=${USERNAME:-hyperliquid}
+        - CHAIN=${CHAIN:-Mainnet}
+    image: hyperliquid:local
+    pull_policy: never
+    user: "${USERNAME:-hyperliquid}"
+    container_name: hyperliquid-cli
+    environment:
+      - CHAIN=${CHAIN:-Mainnet}
+      - NODE_TYPE=${NODE_TYPE:-non-validator}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - ENABLE_EVM_RPC=${ENABLE_EVM_RPC:-false}
+      - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY:-}
+      - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
+      - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
+      - EXTRA_FLAGS=${EXTRA_FLAGS:-}
+    volumes:
+      - consensus-data:/home/${USERNAME}
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        if [ $# -eq 0 ]; then
+          echo "Hyperliquid CLI Tool - Interactive Mode"
+          exec bash
+        else
+          echo "Hyperliquid CLI Tool - Running: $*"
+          exec "$@"
+        fi
+      - --
+    <<: *logging
+
 
 
 volumes:
