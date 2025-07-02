@@ -8,6 +8,7 @@ RUN apt-get update -y && \
 WORKDIR /tmp
 RUN wget -O prune.sh https://raw.githubusercontent.com/hyperliquid-dex/node/refs/heads/main/pruner/scripts/prune.sh
 RUN sed -i "s|DATA_PATH=\"/home/hluser/hl/data\"|DATA_PATH=\"/home/${USERNAME}/hl/data\"|" prune.sh
+RUN sed -i 's|^HOURS=\$((60\*48))|HOURS=$((60*24))|' prune.sh
 
 FROM ubuntu:24.04
 
