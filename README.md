@@ -58,6 +58,66 @@ It's designed to work with [central-proxy-docker](https://github.com/CryptoManuf
     ./hld up -d --remove-orphans
     ```
 
+## Tools and Utilities
+
+This setup includes several utility tools for interacting with your Hyperliquid node and the network.
+
+### CLI Tool
+
+The CLI tool provides access to the Hyperliquid command-line interface within the same environment as your consensus node:
+
+**Interactive mode:**
+```bash
+docker compose --profile tools run --rm cli
+```
+
+**Command mode:**
+```bash
+docker compose --profile tools run --rm cli hl-visor --help
+```
+
+The CLI tool shares the same data volume as the consensus node, giving it access to all node files and configurations.
+
+### Validator Information Query
+
+Query validator summaries and statistics from the Hyperliquid API:
+
+**Basic usage:**
+```bash
+# Query all validators (defaults to Testnet)
+docker compose --profile tools run --rm validator-info
+
+# Query Mainnet validators
+CHAIN=Mainnet docker compose --profile tools run --rm validator-info
+
+# Query Testnet validators explicitly
+CHAIN=Testnet docker compose --profile tools run --rm validator-info
+```
+
+**Filter specific validators using jq:**
+```bash
+# Find a specific validator by name
+docker compose --profile tools run --rm validator-info | jq '.[] | select(.name == "ValiDAO")'
+
+# Show only active validators
+docker compose --profile tools run --rm validator-info | jq '.[] | select(.isActive == true)'
+
+# Show validators with 0% commission
+docker compose --profile tools run --rm validator-info | jq '.[] | select(.commission == "0.0")'
+
+# Show jailed validators
+docker compose --profile tools run --rm validator-info | jq '.[] | select(.isJailed == true)'
+
+# Sort validators by stake (highest first)
+docker compose --profile tools run --rm validator-info | jq 'sort_by(-.stake | tonumber)'
+```
+
+**Suppress informational messages:**
+```bash
+# Clean JSON output only
+docker compose --profile tools run --rm validator-info 2>/dev/null | jq '.'
+```
+
 ## Node Setup
 
 When you first start the node, the container will:
@@ -65,6 +125,20 @@ When you first start the node, the container will:
 *   **Configure the appropriate peers** based on `MAINNET_ROOT_IPS` for Mainnet or `TESTNET_ROOT_IPS` for Testnet.
 *   **Download and verify the hl-visor binary** using the official GPG key from `PUB_KEY_URL`.
 *   If `NODE_TYPE` is set to "validator", a node configuration file will be created with the provided private key. You can generate a private key using `openssl rand -hex 32` if needed. The system will automatically display the corresponding public address during startup.
+
+### Accessing Your Node
+
+**Direct container access:**
+```bash
+# Access the running consensus container
+docker compose exec consensus bash
+
+# View real-time logs
+./hld logs -f
+
+# Check node status
+docker compose exec consensus hl-visor --help
+```
 
 ## Data Pruning
 
@@ -139,11 +213,39 @@ If you include `:ext-network.yml` in your `COMPOSE_FILE` and configure `DOMAIN`,
 
 When deploying your Hyperliquid node, consider the following:
 
-*   **Hardware Requirements:** The node requires adequate CPU, RAM, and disk space. Recommended minimum is 4 CPU cores, 8GB RAM, and 500GB SSD.
+*   **Hardware Requirements:** The node requires adequate CPU, RAM, and disk space. Recommended minimum is 4 CPU cores, 8GB RAM, and 500GB SSD storage.
 *   **Network Configuration:** Ensure that the P2P ports specified in `P2P_PORT_RANGE` are accessible from the internet for proper peer connections.
-*   **Data Volume:** The blockchain data will grow over time. Monitor disk usage regularly. Pruner will reduce the node disk usage.
+*   **Data Volume:** The blockchain data will grow over time. Monitor disk usage regularly. The pruner service will help manage disk usage automatically.
 *   **Security:** If running a validator node, ensure your private key is stored securely and not exposed in environment variables or logs.
 *   **Backups:** Regularly back up your `.env` file and any custom configurations.
+*   **Service Profiles:** Use Docker Compose profiles to run different components:
+    - Default: `consensus` and `pruner` services
+    - Tools: `--profile tools` for CLI and validator-info utilities
+    - Monitoring: Include `:monitoring.yml` in `COMPOSE_FILE` for metrics collection
+
+## Troubleshooting
+
+**Common issues and solutions:**
+
+*   **Port conflicts:** Ensure P2P and RPC ports are not in use by other services
+*   **Sync issues:** Check network connectivity and peer configuration
+*   **Disk space:** Monitor storage usage and verify pruner is running
+*   **Permission errors:** Verify file ownership matches the configured `USERNAME`
+
+**Useful commands:**
+```bash
+# Check service status
+docker compose ps
+
+# View resource usage
+docker compose top
+
+# Restart specific service
+docker compose restart consensus
+
+# View detailed logs with timestamps
+./hld logs --timestamps consensus
+```
 
 ## Version
 

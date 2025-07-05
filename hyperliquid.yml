@@ -84,19 +84,19 @@ services:
 
           # 2) Re-exec into Bash and run the real work
           exec /bin/bash -c '
-            echo "CHAIN set to: ${CHAIN:-Testnet}"
+            echo "CHAIN set to: $${CHAIN:-Testnet}" >&2
 
-            if [ "${CHAIN:-Testnet}" = "Mainnet" ]; then
+            if [ "$${CHAIN:-Testnet}" = "Mainnet" ]; then
               URL="https://api.hyperliquid.xyz/info"
             else
-              URL="https://api/hyperliquid-testnet.xyz/info"
+              URL="https://api.hyperliquid-testnet.xyz/info"
             fi
 
-            echo "Querying validator summaries from: $URL"
+            echo "Querying validator summaries from: $$URL" >&2
             curl -sS -X POST -H "Content-Type: application/json" \
-                --data "{\"type\":\"validatorSummaries\"}" "$URL" | jq .
+                --data "{\"type\":\"validatorSummaries\"}" "$$URL" | jq .
 
-            echo "Done."
+            echo "Done." >&2
           '
     <<: *logging
 
@@ -131,7 +131,7 @@ services:
           echo "Hyperliquid CLI Tool - Interactive Mode"
           exec bash
         else
-          echo "Hyperliquid CLI Tool - Running: $*"
+          echo "Hyperliquid CLI Tool:"
           exec "$@"
         fi
       - --
