@@ -8,7 +8,8 @@ RUN apt-get update -y && \
 WORKDIR /tmp
 RUN wget -O prune.sh https://raw.githubusercontent.com/hyperliquid-dex/node/refs/heads/main/pruner/scripts/prune.sh
 RUN sed -i "s|DATA_PATH=\"/home/hluser/hl/data\"|DATA_PATH=\"/home/${USERNAME}/hl/data\"|" prune.sh
-RUN sed -i 's|^HOURS=\$((60\*48))|HOURS=$((60*24))|' prune.sh
+# Remove files older than 12 hours
+RUN sed -i 's|^HOURS=\$((60\*48))|HOURS=$((60*12))|' prune.sh
 
 FROM ubuntu:24.04
 
@@ -20,8 +21,8 @@ WORKDIR /opt
 COPY --from=builder /tmp/prune.sh /opt/prune.sh
 RUN chmod +x /opt/prune.sh
 
-# Install cron job, run daily
-RUN echo "0 3 * * * /opt/prune.sh" | crontab -
+# Install cron job, run on 3 AM and 3 PM daily
+RUN echo "0 3,15 * * * /opt/prune.sh" | crontab -
 
 # Run cron in foreground
 CMD ["cron", "-f"]
