@@ -19,7 +19,7 @@ fi
 if [ "${CHAIN}" = "Testnet" ]; then
   if [ -n "$TESTNET_ROOT_IPS" ] && [ "$TESTNET_ROOT_IPS" != "[]" ]; then
     cat > "$HOME/override_gossip_config.json" <<EOF
-{ "root_node_ips": ${TESTNET_ROOT_IPS}, "try_new_peers": false, "chain": "Testnet" }
+{ "root_node_ips": ${TESTNET_ROOT_IPS}, "try_new_peers": true, "chain": "Testnet" }
 EOF
   else
     echo "Info: Using default peers for CHAIN=Testnet" >&2
