@@ -165,7 +165,7 @@ services:
         #!/bin/bash
 
         # Configuration
-        CHECK_INTERVAL=1800  # 30 minutes in seconds
+        CHECK_INTERVAL=900  # 15 minutes in seconds
         UNJAIL_DELAY=1800    # 30 minutes delay before unjailing
 
         # Function to log with timestamp
