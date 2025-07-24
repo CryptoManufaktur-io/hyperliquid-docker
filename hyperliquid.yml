@@ -280,8 +280,8 @@ services:
         main() {
             log "Starting Hyperliquid Auto-Unjail Monitor"
             log "Chain: $CHAIN"
-            log "Check interval: $CHECK_INTERVAL seconds ($(($CHECK_INTERVAL / 60)) minutes)"
-            log "Unjail delay: $UNJAIL_DELAY seconds ($(($UNJAIL_DELAY / 60)) minutes)"
+            log "Check interval: $CHECK_INTERVAL seconds ($((CHECK_INTERVAL / 60)) minutes)"
+            log "Unjail delay: $UNJAIL_DELAY seconds ($((UNJAIL_DELAY / 60)) minutes)"
 
             # Wait for consensus container to be ready
             while true; do
@@ -316,10 +316,10 @@ services:
                     if [ -z "$JAIL_DETECTED_TIME" ]; then
                         # First time detecting jail
                         JAIL_DETECTED_TIME="$CURRENT_TIME"
-                        log "ALERT: Validator is JAILED! Will attempt unjail in $(($UNJAIL_DELAY / 60)) minutes..."
+                        log "ALERT: Validator is JAILED! Will attempt unjail in $((UNJAIL_DELAY / 60)) minutes..."
                     else
                         # Check if enough time has passed since jail detection
-                        TIME_SINCE_JAIL=$(($CURRENT_TIME - $JAIL_DETECTED_TIME))
+                        TIME_SINCE_JAIL=$((CURRENT_TIME - JAIL_DETECTED_TIME))
 
                         if [ $TIME_SINCE_JAIL -ge $UNJAIL_DELAY ]; then
                             log "Jail timeout reached. Attempting to unjail validator..."
@@ -332,8 +332,8 @@ services:
                                 log "Unjail attempt failed. Will retry in next cycle."
                             fi
                         else
-                            REMAINING_TIME=$(($UNJAIL_DELAY - $TIME_SINCE_JAIL))
-                            log "Validator still jailed. Time until unjail attempt: $(($REMAINING_TIME / 60)) minutes"
+                            REMAINING_TIME=$((UNJAIL_DELAY - TIME_SINCE_JAIL))
+                            log "Validator still jailed. Time until unjail attempt: $((REMAINING_TIME / 60)) minutes"
                         fi
                     fi
                 else
@@ -346,7 +346,7 @@ services:
                     fi
                 fi
 
-                log "Sleeping for $(($CHECK_INTERVAL / 60)) minutes until next check..."
+                log "Sleeping for $((CHECK_INTERVAL / 60)) minutes until next check..."
                 sleep $CHECK_INTERVAL
             done
         }
