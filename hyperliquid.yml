@@ -189,7 +189,7 @@ services:
 
             PUBKEY=$$(docker exec "$$CONSENSUS_CONTAINER" /bin/bash -c "
                 cd /home/$${USERNAME} &&
-                echo '$$VALIDATOR_PRIVATE_KEY' | ./hl-node --chain $$CHAIN derive-pubkey 2>/dev/null | grep -o '[0-9a-f]\{64\}'
+                ./hl-node --chain $$CHAIN --key $$VALIDATOR_PRIVATE_KEY print-address 2>/dev/null | grep -o '0x[a-fA-F0-9]\{40\}'
             " 2>/dev/null)
 
             if [ -z "$$PUBKEY" ]; then
