@@ -211,7 +211,7 @@ services:
                 URL="https://api.hyperliquid-testnet.xyz/info"
             fi
 
-            log "Checking validator status for pubkey: $$pubkey"
+            log "Checking validator status for signer pubkey: $$pubkey"
 
             # Query validator summaries
             RESPONSE=$$(curl -sS -X POST -H "Content-Type: application/json" \
@@ -303,7 +303,7 @@ services:
                 exit 1
             fi
 
-            log "Monitoring validator: $$VALIDATOR_PUBKEY"
+            log "Monitoring signer: $$VALIDATOR_PUBKEY"
 
             # State tracking
             JAIL_DETECTED_TIME=""
