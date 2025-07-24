@@ -222,17 +222,19 @@ services:
                 return 2
             fi
 
-            # Check if our validator is in the list and if it's jailed
-            VALIDATOR_INFO=$$(echo "$$RESPONSE" | jq -r ".[] | select(.validator == \"$$pubkey\")")
+            # Check if our validator is in the list and if it's jailed (match by signer address)
+            VALIDATOR_INFO=$$(echo "$$RESPONSE" | jq -r ".[] | select(.signer == \"$$pubkey\")")
 
             if [ -z "$$VALIDATOR_INFO" ]; then
-                log "WARNING: Validator with pubkey $$pubkey not found in validator summaries"
+                log "WARNING: Validator with signer address $$pubkey not found in validator summaries"
                 return 1
             fi
 
-            IS_JAILED=$$(echo "$$VALIDATOR_INFO" | jq -r '.jailed // false')
+            IS_JAILED=$$(echo "$$VALIDATOR_INFO" | jq -r '.isJailed // false')
             STAKE=$$(echo "$$VALIDATOR_INFO" | jq -r '.stake // "0"')
+            VALIDATOR_NAME=$$(echo "$$VALIDATOR_INFO" | jq -r '.name // "Unknown"')
 
+            log "Validator name: $$VALIDATOR_NAME"
             log "Validator stake: $$STAKE"
             log "Validator jailed status: $$IS_JAILED"
 
