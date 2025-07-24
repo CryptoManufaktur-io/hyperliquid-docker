@@ -170,73 +170,73 @@ services:
 
         # Function to log with timestamp
         log() {
-            echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] $$1"
         }
 
         # Function to get validator public key from private key
         get_validator_pubkey() {
-            if [ -z "$VALIDATOR_PRIVATE_KEY" ]; then
+            if [ -z "$$VALIDATOR_PRIVATE_KEY" ]; then
                 log "ERROR: VALIDATOR_PRIVATE_KEY not set"
                 return 1
             fi
 
             # Use docker exec to get the public key from the consensus container
-            CONSENSUS_CONTAINER=$(docker ps --filter "name=consensus" --format "{{.Names}}" | head -1)
-            if [ -z "$CONSENSUS_CONTAINER" ]; then
+            CONSENSUS_CONTAINER=$$(docker ps --filter "name=consensus" --format "{{.Names}}" | head -1)
+            if [ -z "$$CONSENSUS_CONTAINER" ]; then
                 log "ERROR: Consensus container not found"
                 return 1
             fi
 
-            PUBKEY=$(docker exec "$CONSENSUS_CONTAINER" /bin/bash -c "
-                cd /home/${USERNAME} &&
-                echo '$VALIDATOR_PRIVATE_KEY' | ./hl-node --chain $CHAIN derive-pubkey 2>/dev/null | grep -o '[0-9a-f]\{64\}'
+            PUBKEY=$$(docker exec "$$CONSENSUS_CONTAINER" /bin/bash -c "
+                cd /home/$${USERNAME} &&
+                echo '$$VALIDATOR_PRIVATE_KEY' | ./hl-node --chain $$CHAIN derive-pubkey 2>/dev/null | grep -o '[0-9a-f]\{64\}'
             " 2>/dev/null)
 
-            if [ -z "$PUBKEY" ]; then
+            if [ -z "$$PUBKEY" ]; then
                 log "ERROR: Could not derive public key from private key"
                 return 1
             fi
 
-            echo "$PUBKEY"
+            echo "$$PUBKEY"
         }
 
         # Function to check if validator is jailed
         check_validator_status() {
-            local pubkey="$1"
+            local pubkey="$$1"
 
             # Determine API URL based on chain
-            if [ "$CHAIN" = "Mainnet" ]; then
+            if [ "$$CHAIN" = "Mainnet" ]; then
                 URL="https://api.hyperliquid.xyz/info"
             else
                 URL="https://api.hyperliquid-testnet.xyz/info"
             fi
 
-            log "Checking validator status for pubkey: $pubkey"
+            log "Checking validator status for pubkey: $$pubkey"
 
             # Query validator summaries
-            RESPONSE=$(curl -sS -X POST -H "Content-Type: application/json" \
-                --data '{"type":"validatorSummaries"}' "$URL" 2>/dev/null)
+            RESPONSE=$$(curl -sS -X POST -H "Content-Type: application/json" \
+                --data '{"type":"validatorSummaries"}' "$$URL" 2>/dev/null)
 
-            if [ $? -ne 0 ] || [ -z "$RESPONSE" ]; then
+            if [ $$? -ne 0 ] || [ -z "$$RESPONSE" ]; then
                 log "ERROR: Failed to query validator summaries"
                 return 2
             fi
 
             # Check if our validator is in the list and if it's jailed
-            VALIDATOR_INFO=$(echo "$RESPONSE" | jq -r ".[] | select(.validator == \"$pubkey\")")
+            VALIDATOR_INFO=$$(echo "$$RESPONSE" | jq -r ".[] | select(.validator == \"$$pubkey\")")
 
-            if [ -z "$VALIDATOR_INFO" ]; then
-                log "WARNING: Validator with pubkey $pubkey not found in validator summaries"
+            if [ -z "$$VALIDATOR_INFO" ]; then
+                log "WARNING: Validator with pubkey $$pubkey not found in validator summaries"
                 return 1
             fi
 
-            IS_JAILED=$(echo "$VALIDATOR_INFO" | jq -r '.jailed // false')
-            STAKE=$(echo "$VALIDATOR_INFO" | jq -r '.stake // "0"')
+            IS_JAILED=$$(echo "$$VALIDATOR_INFO" | jq -r '.jailed // false')
+            STAKE=$$(echo "$$VALIDATOR_INFO" | jq -r '.stake // "0"')
 
-            log "Validator stake: $STAKE"
-            log "Validator jailed status: $IS_JAILED"
+            log "Validator stake: $$STAKE"
+            log "Validator jailed status: $$IS_JAILED"
 
-            if [ "$IS_JAILED" = "true" ]; then
+            if [ "$$IS_JAILED" = "true" ]; then
                 return 0  # Jailed
             else
                 return 1  # Not jailed
@@ -247,31 +247,31 @@ services:
         unjail_validator() {
             log "Attempting to unjail validator..."
 
-            if [ -z "$VALIDATOR_PRIVATE_KEY" ]; then
+            if [ -z "$$VALIDATOR_PRIVATE_KEY" ]; then
                 log "ERROR: VALIDATOR_PRIVATE_KEY not set"
                 return 1
             fi
 
             # Find consensus container
-            CONSENSUS_CONTAINER=$(docker ps --filter "name=consensus" --format "{{.Names}}" | head -1)
-            if [ -z "$CONSENSUS_CONTAINER" ]; then
+            CONSENSUS_CONTAINER=$$(docker ps --filter "name=consensus" --format "{{.Names}}" | head -1)
+            if [ -z "$$CONSENSUS_CONTAINER" ]; then
                 log "ERROR: Consensus container not found"
                 return 1
             fi
 
             # Execute unjail command in the consensus container
-            RESULT=$(docker exec "$CONSENSUS_CONTAINER" /bin/bash -c "
-                cd /home/${USERNAME} &&
-                ./hl-node --chain $CHAIN --key $VALIDATOR_PRIVATE_KEY send-signed-action '{\"type\": \"CSignerAction\", \"unjailSelf\": null}'
+            RESULT=$$(docker exec "$$CONSENSUS_CONTAINER" /bin/bash -c "
+                cd /home/$${USERNAME} &&
+                ./hl-node --chain $$CHAIN --key $$VALIDATOR_PRIVATE_KEY send-signed-action '{\"type\": \"CSignerAction\", \"unjailSelf\": null}'
             " 2>&1)
 
-            if [ $? -eq 0 ]; then
+            if [ $$? -eq 0 ]; then
                 log "SUCCESS: Unjail command executed successfully"
-                log "Result: $RESULT"
+                log "Result: $$RESULT"
                 return 0
             else
                 log "ERROR: Failed to execute unjail command"
-                log "Error: $RESULT"
+                log "Error: $$RESULT"
                 return 1
             fi
         }
@@ -279,15 +279,15 @@ services:
         # Main monitoring loop
         main() {
             log "Starting Hyperliquid Auto-Unjail Monitor"
-            log "Chain: $CHAIN"
-            log "Check interval: $CHECK_INTERVAL seconds ($((CHECK_INTERVAL / 60)) minutes)"
-            log "Unjail delay: $UNJAIL_DELAY seconds ($((UNJAIL_DELAY / 60)) minutes)"
+            log "Chain: $$CHAIN"
+            log "Check interval: $$CHECK_INTERVAL seconds ($$(( CHECK_INTERVAL / 60 )) minutes)"
+            log "Unjail delay: $$UNJAIL_DELAY seconds ($$(( UNJAIL_DELAY / 60 )) minutes)"
 
             # Wait for consensus container to be ready
             while true; do
-                CONSENSUS_CONTAINER=$(docker ps --filter "name=consensus" --format "{{.Names}}" | head -1)
-                if [ -n "$CONSENSUS_CONTAINER" ]; then
-                    log "Found consensus container: $CONSENSUS_CONTAINER"
+                CONSENSUS_CONTAINER=$$(docker ps --filter "name=consensus" --format "{{.Names}}" | head -1)
+                if [ -n "$$CONSENSUS_CONTAINER" ]; then
+                    log "Found consensus container: $$CONSENSUS_CONTAINER"
                     break
                 fi
                 log "Waiting for consensus container to start..."
@@ -295,13 +295,13 @@ services:
             done
 
             # Get validator public key once at startup
-            VALIDATOR_PUBKEY=$(get_validator_pubkey)
-            if [ $? -ne 0 ]; then
+            VALIDATOR_PUBKEY=$$(get_validator_pubkey)
+            if [ $$? -ne 0 ]; then
                 log "FATAL: Cannot determine validator public key. Exiting."
                 exit 1
             fi
 
-            log "Monitoring validator: $VALIDATOR_PUBKEY"
+            log "Monitoring validator: $$VALIDATOR_PUBKEY"
 
             # State tracking
             JAIL_DETECTED_TIME=""
@@ -309,19 +309,19 @@ services:
             while true; do
                 log "Checking validator status..."
 
-                if check_validator_status "$VALIDATOR_PUBKEY"; then
+                if check_validator_status "$$VALIDATOR_PUBKEY"; then
                     # Validator is jailed
-                    CURRENT_TIME=$(date +%s)
+                    CURRENT_TIME=$$(date +%s)
 
-                    if [ -z "$JAIL_DETECTED_TIME" ]; then
+                    if [ -z "$$JAIL_DETECTED_TIME" ]; then
                         # First time detecting jail
-                        JAIL_DETECTED_TIME="$CURRENT_TIME"
-                        log "ALERT: Validator is JAILED! Will attempt unjail in $((UNJAIL_DELAY / 60)) minutes..."
+                        JAIL_DETECTED_TIME="$$CURRENT_TIME"
+                        log "ALERT: Validator is JAILED! Will attempt unjail in $$(( UNJAIL_DELAY / 60 )) minutes..."
                     else
                         # Check if enough time has passed since jail detection
-                        TIME_SINCE_JAIL=$((CURRENT_TIME - JAIL_DETECTED_TIME))
+                        TIME_SINCE_JAIL=$$(( CURRENT_TIME - JAIL_DETECTED_TIME ))
 
-                        if [ $TIME_SINCE_JAIL -ge $UNJAIL_DELAY ]; then
+                        if [ $$TIME_SINCE_JAIL -ge $$UNJAIL_DELAY ]; then
                             log "Jail timeout reached. Attempting to unjail validator..."
 
                             if unjail_validator; then
@@ -332,13 +332,13 @@ services:
                                 log "Unjail attempt failed. Will retry in next cycle."
                             fi
                         else
-                            REMAINING_TIME=$((UNJAIL_DELAY - TIME_SINCE_JAIL))
-                            log "Validator still jailed. Time until unjail attempt: $((REMAINING_TIME / 60)) minutes"
+                            REMAINING_TIME=$$(( UNJAIL_DELAY - TIME_SINCE_JAIL ))
+                            log "Validator still jailed. Time until unjail attempt: $$(( REMAINING_TIME / 60 )) minutes"
                         fi
                     fi
                 else
                     # Validator is not jailed or error occurred
-                    if [ -n "$JAIL_DETECTED_TIME" ]; then
+                    if [ -n "$$JAIL_DETECTED_TIME" ]; then
                         log "Validator is no longer jailed or status check failed"
                         JAIL_DETECTED_TIME=""
                     else
@@ -346,8 +346,8 @@ services:
                     fi
                 fi
 
-                log "Sleeping for $((CHECK_INTERVAL / 60)) minutes until next check..."
-                sleep $CHECK_INTERVAL
+                log "Sleeping for $$(( CHECK_INTERVAL / 60 )) minutes until next check..."
+                sleep $$CHECK_INTERVAL
             done
         }
 
