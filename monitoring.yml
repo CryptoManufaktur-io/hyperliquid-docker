@@ -27,6 +27,7 @@ services:
       - --alias=${NODE_ALIAS:-local}
       - --node-home=/home/hyperliquid/hl
       - --node-binary=/home/hyperliquid/hl-node
+      - --validator-rtt
     depends_on:
       - consensus
     <<: *logging
