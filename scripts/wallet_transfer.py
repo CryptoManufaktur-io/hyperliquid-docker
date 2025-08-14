@@ -6,16 +6,40 @@ A comprehensive script for transferring USDC or HYPE tokens between wallets
 on Hyperliquid (mainnet/testnet) using the Hyperliquid Python SDK.
 
 Features:
-- Auto-installs required dependencies
-- Supports both mainnet and testnet
-- Handles USDC and HYPE token transfers
+- Auto-installs required dependencies (hyperliquid-python-sdk, eth-account, eth-utils)
+- Supports both mainnet and testnet environments
+- Handles USDC and HYPE token transfers with proper formatting
 - Comprehensive error handling and diagnostics
 - Balance verification before and after transfer
-- Recipient registration checks
+- Recipient registration checks to prevent failed transfers
 - Multiple transfer method attempts for compatibility
+- Interactive user input with validation
+- Detailed logging and status updates
 
 Usage:
-    python hyperliquid_transfer.py
+    python scripts/wallet_transfer.py
+
+The script will interactively prompt for:
+- Source wallet private key
+- Destination wallet address
+- Transfer amount
+- Token type (USDC/HYPE)
+- Network selection (Mainnet/Testnet)
+
+Security Notes:
+- Private keys are handled securely and not logged
+- Network connections use official Hyperliquid endpoints
+- All transfers are verified before execution
+- Supports test mode for validation
+
+Dependencies:
+- Python 3.7+
+- Internet connection for package installation and API calls
+- Valid Hyperliquid wallet with sufficient balance
+
+Exit Codes:
+    0: Transfer completed successfully
+    1: Error in configuration, network, or transfer execution
 """
 
 import sys

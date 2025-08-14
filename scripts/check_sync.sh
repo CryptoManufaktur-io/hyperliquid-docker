@@ -1,4 +1,29 @@
 #!/usr/bin/env bash
+#
+# Hyperliquid Node Sync Status Checker
+#
+# This script compares your local node's block height with the public network
+# to determine sync status. It automatically detects Mainnet vs Testnet based
+# on your .env configuration.
+#
+# Usage:
+#   ./scripts/check_sync.sh
+#
+# Requirements:
+#   - curl and jq installed
+#   - EVM RPC enabled (ENABLE_EVM_RPC=true)
+#   - Node running and accessible on localhost:3001
+#
+# Output:
+#   - Local node block height
+#   - Public network block height
+#   - Sync status (synced, behind, or error)
+#
+# Exit codes:
+#   0: Success (synced or behind - normal operation)
+#   1: Configuration error or network unavailable
+#
+
 # Removed strict mode to see more errors
 # set -euo pipefail
 
