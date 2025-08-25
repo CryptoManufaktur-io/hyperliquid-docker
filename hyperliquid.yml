@@ -27,6 +27,7 @@ services:
       - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
       - EXTRA_FLAGS=${EXTRA_FLAGS:-}
+      - FIREWALL_IPS=${FIREWALL_IPS:-}
     ports:
       - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/tcp
     <<: *logging
