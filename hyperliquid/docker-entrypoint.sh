@@ -63,12 +63,10 @@ create_firewall_config() {
     fi
 
     # Parse the FIREWALL_IPS JSON and convert to the required format: [ ["ip", {"name": "...", "allowed": true}], ... ]
-    echo "$FIREWALL_IPS" | jq 'map([.ip, {"name": .name, "allowed": .allowed}])' > "$firewall_file"
-
-    if [ $? -eq 0 ] && [ -s "$firewall_file" ]; then
+    if echo "$FIREWALL_IPS" | jq 'map([.ip, {"name": .name, "allowed": .allowed}])' > "$firewall_file" && [ -s "$firewall_file" ]; then
       echo "✅ Successfully created firewall configuration"
       echo "Firewall IPs configured:"
-      cat "$firewall_file" | jq -r '.[] | "  \(.[0]) - \(.[1].name) (allowed: \(.[1].allowed))"'
+      jq -r '.[] | "  \(.[0]) - \(.[1].name) (allowed: \(.[1].allowed))"' "$firewall_file"
     else
       echo "❌ Error: Failed to create firewall configuration file" >&2
       echo "Expected FIREWALL_IPS format: [{\"ip\": \"1.2.3.4\", \"name\": \"Node Name\", \"allowed\": true}, ...]" >&2
