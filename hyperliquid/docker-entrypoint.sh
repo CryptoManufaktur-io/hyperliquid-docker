@@ -42,6 +42,52 @@ else
   echo "🚨 Removed validator key from $HOME/hl/hyperliquid_data/node_config.json. This is a rpc node 🚨"
 fi
 
+# Function to create firewall_ips.json for validators
+# This creates the firewall configuration file as specified in the Hyperliquid validator documentation
+# The file format is: [ ["ip_address", {"name": "description", "allowed": boolean}], ... ]
+# Example output: [ ["43.206.47.239", {"name": "Hyper Foundation 1", "allowed": true}] ]
+create_firewall_config() {
+  local firewall_dir="$HOME/hl/file_mod_time_tracker"
+  local firewall_file="$firewall_dir/firewall_ips.json"
+
+  # Create directory if it doesn't exist
+  mkdir -p "$firewall_dir"
+
+  if [ -n "$FIREWALL_IPS" ] && [ "$FIREWALL_IPS" != "[]" ]; then
+    echo "Creating firewall configuration at $firewall_file"
+
+    # Validate JSON format first
+    if ! echo "$FIREWALL_IPS" | jq . >/dev/null 2>&1; then
+      echo "❌ Error: FIREWALL_IPS contains invalid JSON format" >&2
+      exit 1
+    fi
+
+    # Parse the FIREWALL_IPS JSON and convert to the required format: [ ["ip", {"name": "...", "allowed": true}], ... ]
+    echo "$FIREWALL_IPS" | jq 'map([.ip, {"name": .name, "allowed": .allowed}])' > "$firewall_file"
+
+    if [ $? -eq 0 ] && [ -s "$firewall_file" ]; then
+      echo "✅ Successfully created firewall configuration"
+      echo "Firewall IPs configured:"
+      cat "$firewall_file" | jq -r '.[] | "  \(.[0]) - \(.[1].name) (allowed: \(.[1].allowed))"'
+    else
+      echo "❌ Error: Failed to create firewall configuration file" >&2
+      echo "Expected FIREWALL_IPS format: [{\"ip\": \"1.2.3.4\", \"name\": \"Node Name\", \"allowed\": true}, ...]" >&2
+      exit 1
+    fi
+  else
+    echo "No firewall IPs configured (FIREWALL_IPS is empty or not set)"
+    # Create empty array if no IPs are specified
+    echo "[]" > "$firewall_file"
+    echo "Created empty firewall configuration at $firewall_file"
+  fi
+}
+
+# Create firewall configuration for validators or when FIREWALL_IPS is explicitly set
+# This is required for mainnet validators to manage DDOS protection and peer connectivity
+if [ "$NODE_TYPE" = "validator" ] || [ -n "$FIREWALL_IPS" ]; then
+  create_firewall_config
+fi
+
 # Base run command
 CMD="$HOME/hl-visor run-$NODE_TYPE"
 
