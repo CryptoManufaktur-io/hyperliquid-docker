@@ -30,6 +30,7 @@ services:
       - FIREWALL_IPS=${FIREWALL_IPS:-}
     ports:
       - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/tcp
+      - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/udp
     <<: *logging
     volumes:
       - consensus-data:/home/${USERNAME}
