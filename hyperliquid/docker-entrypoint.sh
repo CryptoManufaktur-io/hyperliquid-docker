@@ -82,7 +82,7 @@ create_firewall_config() {
 
 # Create firewall configuration for validators or when FIREWALL_IPS is explicitly set
 # This is required for mainnet validators to manage DDOS protection and peer connectivity
-if [ "$NODE_TYPE" = "validator" ] && [ -n "$FIREWALL_IPS" ]; then
+if [ -n "$FIREWALL_IPS" ]; then
   create_firewall_config
 fi
 
