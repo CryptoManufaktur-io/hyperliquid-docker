@@ -161,6 +161,24 @@ When changing validator IP addresses, ensure you:
 2. Update validator profile using `hl-node --chain <chain> --key <validator-key> change-validator-profile`
 3. Update the `FIREWALL_IPS` configuration and restart the container
 
+### UFW Firewall Rules
+
+In addition to the application-level firewall configuration above, you should also configure UFW (Uncomplicated Firewall) on your host system to allow connections from trusted validator IPs. Here are example commands for allowing connections from known validators:
+
+```bash
+# XXX Company
+sudo ufw allow from 1.2.3.4 to any port 4000:4010 proto tcp comment "XXX - TCP"
+sudo ufw allow from 1.2.3.4 to any port 4000:4010 proto udp comment "XXX - UDP"
+```
+
+**UFW Configuration Notes:**
+- Replace the IP addresses with the current validator IPs from your `FIREWALL_IPS` configuration
+- The port range `4000:4010` should match your `P2P_PORT_RANGE` setting
+- Include both TCP and UDP protocols for each validator
+- Use descriptive comments to identify each validator for easier management
+- To view current UFW rules: `sudo ufw status numbered`
+- To delete a rule: `sudo ufw delete [rule_number]`
+
 ### Accessing Your Node
 
 **Direct container access:**
