@@ -14,7 +14,7 @@ echo "$FIREWALL_IPS" | jq -c '.[]' | while read -r entry; do
     name=$(echo "$entry" | jq -r '.name')
     echo -e "\n=== Testing $name ($ip) ==="
     for port in $(seq 4001 4004); do
-        if nc -z -w2 $ip $port 2>/dev/null; then
+        if nc -z -w2 "$ip" "$port" 2>/dev/null; then
             echo "Port $port: OPEN"
         else
             echo "Port $port: CLOSED"
