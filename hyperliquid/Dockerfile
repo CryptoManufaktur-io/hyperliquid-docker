@@ -7,7 +7,7 @@ ARG PUB_KEY_URL
 # Create user and install dependencies
 RUN groupadd --gid $USER_UID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_UID -m $USERNAME \
-    && apt-get update -y && apt-get install -y curl gnupg net-tools jq \
+    && apt-get update -y && apt-get install -y curl gnupg net-tools jq netcat-openbsd \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /home/$USERNAME/hl/data /home/$USERNAME/hl/hyperliquid_data \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/hl
