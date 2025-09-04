@@ -158,8 +158,7 @@ For mainnet validators, proper firewall configuration is essential for DDOS prot
 **Validator IP management:**
 When changing validator IP addresses, ensure you:
 1. Run connectivity checks using `hl-node --chain <chain> check-reachability`
-2. Update validator profile using `hl-node --chain <chain> --key <validator-key> change-validator-profile`
-3. Update the `FIREWALL_IPS` configuration and restart the container
+2. Update the `FIREWALL_IPS` configuration and restart the container
 
 ### Dynamic Configuration Updates
 
