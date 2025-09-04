@@ -202,6 +202,40 @@ docker compose exec consensus bash
 docker compose exec consensus hl-visor --help
 ```
 
+## Validator Voting
+
+For validators participating in governance, you can vote on L1 actions directly from your node.
+
+### How to Vote
+
+Voting involves sending a signed action with your validator wallet:
+
+```bash
+# Vote "yes" on an action (replace PERPNAME with the actual perpetual name)
+docker compose exec consensus hl-node --chain Mainnet --key <validator-key> send-signed-action '{"type": "validatorL1Vote", "D": "PERPNAME"}'
+```
+
+### Important Notes
+
+- **Use validator wallet**: Send votes with your validator (cold) wallet, not the signer address
+- **Chain specification**: Always specify `--chain Mainnet` or `--chain Testnet`
+- **Key parameter**: Replace `<validator-key>` with your actual validator private key
+- **Voting behavior**: Sending any action votes "yes" - there's currently no way to vote "no"
+- **Vote expiration**: Votes expire in 1 day if quorum is not met
+- **Concurrency limit**: Validators can only vote on 50 concurrent actions
+- **No unvoting**: There's currently no way to unvote once submitted
+
+### Check Vote Status
+
+You can view current vote summaries using the API:
+
+```bash
+# Get current validator L1 votes
+curl -X POST --header "Content-Type: application/json" \
+  --data '{"type":"validatorL1Votes"}' \
+  https://api.hyperliquid.xyz/info
+```
+
 ## Data Pruning
 
 The setup includes a `pruner` service that automatically removes old blockchain data to manage disk space.
