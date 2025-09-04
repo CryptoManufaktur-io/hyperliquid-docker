@@ -133,7 +133,7 @@ For mainnet validators, proper firewall configuration is essential for DDOS prot
 **Configuration:**
 1. **Set the FIREWALL_IPS variable** in your `.env` file with a JSON array of validator IPs:
    ```env
-   FIREWALL_IPS='[{"ip": "43.206.47.239", "name": "Hyper Foundation 1", "allowed": true}, {"ip": "54.250.198.159", "name": "Hyper Foundation 2", "allowed": true}]'
+   FIREWALL_IPS='[{"ip": "1.2.3.4", "name": "Hyper Foundation 1", "allowed": true}, {"ip": "1.2.3.4", "name": "Hyper Foundation 2", "allowed": true}]'
    ```
 
 2. **Required format:** Each entry must include:
@@ -160,6 +160,16 @@ When changing validator IP addresses, ensure you:
 1. Run connectivity checks using `hl-node --chain <chain> check-reachability`
 2. Update validator profile using `hl-node --chain <chain> --key <validator-key> change-validator-profile`
 3. Update the `FIREWALL_IPS` configuration and restart the container
+
+### Dynamic Configuration Updates
+
+You can update node configuration (gossip peers and firewall settings) without restarting the consensus container.
+
+**Usage:**
+1. Edit your `.env` file with new settings
+2. Run: `docker compose run --rm config-sync`
+
+This will apply your `.env` changes to the running node immediately. Useful for updating firewall IPs, switching networks, or changing peer configurations.
 
 ### UFW Firewall Rules
 
