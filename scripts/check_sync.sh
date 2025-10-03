@@ -4,24 +4,27 @@
 
 # ——————— Load .env and export everything ———————
 echo "Loading environment variables..."
-set -o allexport
-if [ -f "$(dirname "$0")/.env" ]; then
-  source "$(dirname "$0")/.env"
-  echo "Loaded .env file"
-else
-  echo "Error: .env file not found"
-  # Try to load from default.env instead
-  if [ -f "$(dirname "$0")/default.env" ]; then
-    source "$(dirname "$0")/default.env"
-    echo "Loaded default.env file instead"
-  else
-    echo "Error: default.env file not found either"
-    exit 1
-  fi
-fi
-set +o allexport
 
-# Check if CHAIN variable is set
+# Get the script directory and the project root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+set -o allexport
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    source "$PROJECT_ROOT/.env"
+    echo "Loaded .env file"
+else
+    echo "Error: .env file not found"
+    # Try to load from default.env instead
+    if [ -f "$PROJECT_ROOT/default.env" ]; then
+        source "$PROJECT_ROOT/default.env"
+        echo "Loaded default.env file instead"
+    else
+        echo "Error: default.env file not found either"
+        exit 1
+    fi
+fi
+set +o allexport# Check if CHAIN variable is set
 if [ -z "${CHAIN+x}" ]; then
   echo "Error: CHAIN variable is not set in the environment file"
   exit 1
