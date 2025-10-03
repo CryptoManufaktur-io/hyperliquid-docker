@@ -24,7 +24,8 @@ else
         exit 1
     fi
 fi
-set +o allexport# Check if CHAIN variable is set
+set +o allexport
+# Check if CHAIN variable is set
 if [ -z "${CHAIN+x}" ]; then
   echo "Error: CHAIN variable is not set in the environment file"
   exit 1
