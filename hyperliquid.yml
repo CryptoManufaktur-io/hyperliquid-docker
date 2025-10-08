@@ -26,6 +26,7 @@ services:
       - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY:-}
       - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
+      - RESERVED_PEER_IPS=${RESERVED_PEER_IPS:-}
       - EXTRA_FLAGS=${EXTRA_FLAGS:-}
       - FIREWALL_IPS=${FIREWALL_IPS:-}
     ports:
@@ -149,6 +150,7 @@ services:
       - CHAIN=${CHAIN:-Mainnet}
       - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
+      - RESERVED_PEER_IPS=${RESERVED_PEER_IPS:-}
       - FIREWALL_IPS=${FIREWALL_IPS:-}
     volumes:
       - consensus-data:/home/${USERNAME}
@@ -161,11 +163,12 @@ services:
 
         # Function to create gossip config (same logic as docker-entrypoint.sh)
         create_gossip_config() {
+          RESERVED_PEERS="${${RESERVED_PEER_IPS}:-[]}"
           if [ "$${CHAIN}" = "Mainnet" ]; then
             if [ -n "$${MAINNET_ROOT_IPS}" ] && [ "$${MAINNET_ROOT_IPS}" != "[]" ]; then
               echo "Creating Mainnet gossip configuration..."
               cat > "$$HOME/override_gossip_config.json" <<EOF
-        { "root_node_ips": $${MAINNET_ROOT_IPS}, "try_new_peers": false, "chain": "Mainnet" }
+        { "root_node_ips": $${MAINNET_ROOT_IPS}, "try_new_peers": false, "chain": "Mainnet", "reserved_peer_ips": $${RESERVED_PEERS} }
         EOF
               echo "✅ Created Mainnet gossip config"
             else
@@ -176,7 +179,7 @@ services:
             if [ -n "$${TESTNET_ROOT_IPS}" ] && [ "$${TESTNET_ROOT_IPS}" != "[]" ]; then
               echo "Creating Testnet gossip configuration..."
               cat > "$$HOME/override_gossip_config.json" <<EOF
-        { "root_node_ips": $${TESTNET_ROOT_IPS}, "try_new_peers": false, "chain": "Testnet" }
+        { "root_node_ips": $${TESTNET_ROOT_IPS}, "try_new_peers": false, "chain": "Testnet", "reserved_peer_ips": $${RESERVED_PEERS} }
         EOF
               echo "✅ Created Testnet gossip config"
             else
@@ -225,6 +228,7 @@ services:
         echo "  CHAIN: $${CHAIN:-<not set>}"
         echo "  MAINNET_ROOT_IPS: $${MAINNET_ROOT_IPS:-<not set>}"
         echo "  TESTNET_ROOT_IPS: $${TESTNET_ROOT_IPS:-<not set>}"
+        echo "  RESERVED_PEER_IPS: $${RESERVED_PEER_IPS:-<not set>}"
         echo "  FIREWALL_IPS: $${FIREWALL_IPS:-<not set>}"
         echo
 
