@@ -26,9 +26,12 @@ services:
       - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY:-}
       - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
+      - RESERVED_PEER_IPS=${RESERVED_PEER_IPS:-}
       - EXTRA_FLAGS=${EXTRA_FLAGS:-}
+      - FIREWALL_IPS=${FIREWALL_IPS:-}
     ports:
       - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/tcp
+      - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/udp
     <<: *logging
     volumes:
       - consensus-data:/home/${USERNAME}
@@ -362,6 +365,107 @@ services:
 
         # Execute the auto-unjail script
         exec /auto-unjail.sh
+    <<: *logging
+
+  config-sync:
+    profiles: ["tools"]
+    image: hyperliquid:local
+    pull_policy: never
+    user: "${USERNAME:-hyperliquid}"
+    environment:
+      - USERNAME=${USERNAME:-hyperliquid}
+      - CHAIN=${CHAIN:-Mainnet}
+      - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
+      - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
+      - RESERVED_PEER_IPS=${RESERVED_PEER_IPS:-}
+      - FIREWALL_IPS=${FIREWALL_IPS:-}
+    volumes:
+      - consensus-data:/home/${USERNAME}
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        echo "🔄 Hyperliquid Configuration Sync"
+        echo "Reading configuration from .env file..."
+
+        # Function to create gossip config (same logic as docker-entrypoint.sh)
+        create_gossip_config() {
+          RESERVED_PEERS="$${RESERVED_PEER_IPS:-[]}"
+          if [ "$${CHAIN}" = "Mainnet" ]; then
+            if [ -n "$${MAINNET_ROOT_IPS}" ] && [ "$${MAINNET_ROOT_IPS}" != "[]" ]; then
+              echo "Creating Mainnet gossip configuration..."
+              cat > "$$HOME/override_gossip_config.json" <<EOF
+        { "root_node_ips": $${MAINNET_ROOT_IPS}, "try_new_peers": false, "chain": "Mainnet", "reserved_peer_ips": $${RESERVED_PEERS} }
+        EOF
+              echo "✅ Created Mainnet gossip config"
+            else
+              echo "❌ Error: MAINNET_ROOT_IPS must be set and non-empty when CHAIN=Mainnet"
+              return 1
+            fi
+          elif [ "$${CHAIN}" = "Testnet" ]; then
+            if [ -n "$${TESTNET_ROOT_IPS}" ] && [ "$${TESTNET_ROOT_IPS}" != "[]" ]; then
+              echo "Creating Testnet gossip configuration..."
+              cat > "$$HOME/override_gossip_config.json" <<EOF
+        { "root_node_ips": $${TESTNET_ROOT_IPS}, "try_new_peers": false, "chain": "Testnet", "reserved_peer_ips": $${RESERVED_PEERS} }
+        EOF
+              echo "✅ Created Testnet gossip config"
+            else
+              echo "ℹ️  Using default peers for Testnet"
+              rm -f "$$HOME/override_gossip_config.json"
+            fi
+          else
+            echo "⚠️  Unknown CHAIN value: $${CHAIN}"
+          fi
+        }
+
+        # Function to create firewall config (same logic as docker-entrypoint.sh)
+        create_firewall_config() {
+          local firewall_dir="$$HOME/hl/file_mod_time_tracker"
+          local firewall_file="$$firewall_dir/firewall_ips.json"
+
+          mkdir -p "$$firewall_dir"
+
+          if [ -n "$${FIREWALL_IPS}" ] && [ "$${FIREWALL_IPS}" != "[]" ]; then
+            echo "Creating firewall configuration..."
+
+            # Validate JSON format first
+            if ! echo "$${FIREWALL_IPS}" | jq . >/dev/null 2>&1; then
+              echo "❌ Error: FIREWALL_IPS contains invalid JSON format"
+              return 1
+            fi
+
+            # Parse and convert to required format
+            if echo "$${FIREWALL_IPS}" | jq 'map([.ip, {"name": .name, "allowed": .allowed}])' > "$$firewall_file" && [ -s "$$firewall_file" ]; then
+              echo "✅ Successfully created firewall configuration"
+              echo "Firewall IPs configured:"
+              jq -r '.[] | "  \(.[0]) - \(.[1].name) (allowed: \(.[1].allowed))"' "$$firewall_file"
+            else
+              echo "❌ Error: Failed to create firewall configuration file"
+              return 1
+            fi
+          else
+            echo "Creating empty firewall configuration..."
+            echo "[]" > "$$firewall_file"
+            echo "✅ Created empty firewall configuration"
+          fi
+        }
+
+        # Show current environment
+        echo "Current configuration:"
+        echo "  CHAIN: $${CHAIN:-<not set>}"
+        echo "  MAINNET_ROOT_IPS: $${MAINNET_ROOT_IPS:-<not set>}"
+        echo "  TESTNET_ROOT_IPS: $${TESTNET_ROOT_IPS:-<not set>}"
+        echo "  RESERVED_PEER_IPS: $${RESERVED_PEER_IPS:-<not set>}"
+        echo "  FIREWALL_IPS: $${FIREWALL_IPS:-<not set>}"
+        echo
+
+        # Apply configurations
+        create_gossip_config
+        create_firewall_config
+
+        echo
+        echo "✅ Configuration sync completed!"
+        echo "The running consensus node will pick up these changes."
     <<: *logging
 
 

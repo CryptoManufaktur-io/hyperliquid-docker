@@ -126,6 +126,68 @@ When you first start the node, the container will:
 *   **Download and verify the hl-visor binary** using the official GPG key from `PUB_KEY_URL`.
 *   If `NODE_TYPE` is set to "validator", a node configuration file will be created with the provided private key. You can generate a private key using `openssl rand -hex 32` if needed. The system will automatically display the corresponding public address during startup.
 
+### Firewall Configuration for Validators
+
+For mainnet validators, proper firewall configuration is essential for DDOS protection and secure peer connectivity. The container automatically creates a `firewall_ips.json` file based on the `FIREWALL_IPS` environment variable.
+
+**Configuration:**
+1. **Set the FIREWALL_IPS variable** in your `.env` file with a JSON array of validator IPs:
+   ```env
+   FIREWALL_IPS='[{"ip": "1.2.3.4", "name": "Hyper Foundation 1", "allowed": true}, {"ip": "1.2.3.4", "name": "Hyper Foundation 2", "allowed": true}]'
+   ```
+
+2. **Required format:** Each entry must include:
+   - `ip`: The IPv4 address of the validator
+   - `name`: A descriptive name for the validator
+   - `allowed`: Boolean flag (typically `true` for whitelisted IPs)
+
+3. **File creation:** The container automatically creates `~/hl/file_mod_time_tracker/firewall_ips.json` with the proper format:
+   ```json
+   [
+     ["1.2.3.4", {"name": "Hyper Foundation 1", "allowed": true}],
+     ["1.2.3.4", {"name": "Hyper Foundation 2", "allowed": true}]
+   ]
+   ```
+
+**Important notes:**
+- The firewall configuration is created automatically when `NODE_TYPE=validator` or when `FIREWALL_IPS` is explicitly set
+- An empty array `[]` creates an empty firewall configuration
+- The default for unknown validators is to deny connections, so keep this file up-to-date
+- This configuration works in conjunction with your actual firewall rules for ports 4001-4004
+
+**Validator IP management:**
+When changing validator IP addresses, ensure you:
+1. Run connectivity checks using `hl-node --chain <chain> check-reachability`
+2. Update the `FIREWALL_IPS` configuration and restart the container
+
+### Dynamic Configuration Updates
+
+You can update node configuration (gossip peers and firewall settings) without restarting the consensus container.
+
+**Usage:**
+1. Edit your `.env` file with new settings
+2. Run: `docker compose run --rm config-sync`
+
+This will apply your `.env` changes to the running node immediately. Useful for updating firewall IPs, switching networks, or changing peer configurations.
+
+### UFW Firewall Rules
+
+In addition to the application-level firewall configuration above, you should also configure UFW (Uncomplicated Firewall) on your host system to allow connections from trusted validator IPs. Here are example commands for allowing connections from known validators:
+
+```bash
+# XXX Company
+sudo ufw allow from 1.2.3.4 to any port 4000:4010 proto tcp comment "XXX - TCP"
+sudo ufw allow from 1.2.3.4 to any port 4000:4010 proto udp comment "XXX - UDP"
+```
+
+**UFW Configuration Notes:**
+- Replace the IP addresses with the current validator IPs from your `FIREWALL_IPS` configuration
+- The port range `4000:4010` should match your `P2P_PORT_RANGE` setting
+- Include both TCP and UDP protocols for each validator
+- Use descriptive comments to identify each validator for easier management
+- To view current UFW rules: `sudo ufw status numbered`
+- To delete a rule: `sudo ufw delete [rule_number]`
+
 ### Accessing Your Node
 
 **Direct container access:**
@@ -138,6 +200,40 @@ docker compose exec consensus bash
 
 # Check node status
 docker compose exec consensus hl-visor --help
+```
+
+## Validator Voting
+
+For validators participating in governance, you can vote on L1 actions directly from your node.
+
+### How to Vote
+
+Voting involves sending a signed action with your validator wallet:
+
+```bash
+# Vote "yes" on an action (replace PERPNAME with the actual perpetual name)
+docker compose exec consensus hl-node --chain Mainnet --key <validator-key> send-signed-action '{"type": "validatorL1Vote", "D": "PERPNAME"}'
+```
+
+### Important Notes
+
+- **Use validator wallet**: Send votes with your validator (cold) wallet, not the signer address
+- **Chain specification**: Always specify `--chain Mainnet` or `--chain Testnet`
+- **Key parameter**: Replace `<validator-key>` with your actual validator private key
+- **Voting behavior**: Sending any action votes "yes" - there's currently no way to vote "no"
+- **Vote expiration**: Votes expire in 1 day if quorum is not met
+- **Concurrency limit**: Validators can only vote on 50 concurrent actions
+- **No unvoting**: There's currently no way to unvote once submitted
+
+### Check Vote Status
+
+You can view current vote summaries using the API:
+
+```bash
+# Get current validator L1 votes
+curl -X POST --header "Content-Type: application/json" \
+  --data '{"type":"validatorL1Votes"}' \
+  https://api.hyperliquid.xyz/info
 ```
 
 ## Data Pruning
