@@ -16,7 +16,6 @@ It's designed to work with [central-proxy-docker](https://github.com/CryptoManuf
     *   `CHAIN`: Set to "Mainnet" or "Testnet".
     *   `USERNAME`: Username for the node container (default: `hyperliquid`).
     *   `NODE_TYPE`: Set to "non-validator" or "validator".
-    *   `ENABLE_EVM_RPC`: Set to `true` to enable the `--serve-eth-rpc` flag (default: `true`).
     *   `P2P_PORT_RANGE`: Port range for P2P communication (default: `4000-4010`).
     *   `EVM_RPC_PORT`: Port for ETH RPC access (default: `3001`).
     *   `COMPOSE_FILE`: Add other compose files like `:rpc-shared.yml` or `:ext-network.yml` as needed.
