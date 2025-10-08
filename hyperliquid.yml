@@ -163,7 +163,7 @@ services:
 
         # Function to create gossip config (same logic as docker-entrypoint.sh)
         create_gossip_config() {
-          RESERVED_PEERS="${${RESERVED_PEER_IPS}:-[]}"
+          RESERVED_PEERS="$${RESERVED_PEER_IPS:-[]}"
           if [ "$${CHAIN}" = "Mainnet" ]; then
             if [ -n "$${MAINNET_ROOT_IPS}" ] && [ "$${MAINNET_ROOT_IPS}" != "[]" ]; then
               echo "Creating Mainnet gossip configuration..."
