@@ -22,7 +22,6 @@ services:
       - CHAIN=${CHAIN:-Mainnet}
       - NODE_TYPE=${NODE_TYPE:-non-validator}
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      - ENABLE_EVM_RPC=${ENABLE_EVM_RPC:-false}
       - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY:-}
       - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
@@ -119,7 +118,6 @@ services:
       - CHAIN=${CHAIN:-Mainnet}
       - NODE_TYPE=${NODE_TYPE:-non-validator}
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      - ENABLE_EVM_RPC=${ENABLE_EVM_RPC:-false}
       - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY:-}
       - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
