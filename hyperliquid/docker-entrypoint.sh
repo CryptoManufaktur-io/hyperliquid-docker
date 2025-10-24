@@ -93,6 +93,10 @@ fi
 # Base run command
 CMD="$HOME/hl-visor run-$NODE_TYPE"
 
+if [ "$ENABLE_EVM_RPC" = "true" ]; then
+  CMD="$CMD --serve-eth-rpc"
+fi
+
 if [ -n "$EXTRA_FLAGS" ]; then
   CMD="$CMD $EXTRA_FLAGS"
 fi
