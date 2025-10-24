@@ -38,7 +38,7 @@ if [ "$NODE_TYPE" = "validator" ]; then
     exit 1
   fi
   cat > "$HOME/hl/hyperliquid_data/node_config.json" <<EOF
-{ "key": "$VALIDATOR_PRIVATE_KEY" }
+{ "key": "$VALIDATOR_PRIVATE_KEY", "sentry_ips": "$SENTRY_IPS" }
 EOF
   echo "✅ Wrote validator key to $HOME/hl/hyperliquid_data/node_config.json. This is a validator node 🚨"
 else
