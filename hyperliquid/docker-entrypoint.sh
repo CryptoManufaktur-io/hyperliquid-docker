@@ -97,5 +97,22 @@ if [ -n "$EXTRA_FLAGS" ]; then
   CMD="$CMD $EXTRA_FLAGS"
 fi
 
+# Ensure only one hl-node process runs
+LOCK_FILE="$HOME/.hl-node.lock"
+if [ -f "$LOCK_FILE" ]; then
+  OLD_PID=$(cat "$LOCK_FILE")
+  if kill -0 "$OLD_PID" 2>/dev/null; then
+    echo "❌ Error: hl-node is already running (PID: $OLD_PID)" >&2
+    exit 1
+  else
+    echo "⚠️  Removing stale lock file from previous run"
+    rm -f "$LOCK_FILE"
+  fi
+fi
+
+# Create lock file with current PID and clean up on exit
+echo $$ > "$LOCK_FILE"
+trap "rm -f $LOCK_FILE" EXIT
+
 echo "Executing: $CMD"
 exec $CMD
