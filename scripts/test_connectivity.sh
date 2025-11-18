@@ -1,19 +1,28 @@
 #!/bin/bash
 
-FIREWALL_IPS='[
-{"ip": "192.168.1.100", "name": "Test Node 1"},
-{"ip": "192.168.1.101", "name": "Test Node 2"},
-{"ip": "192.168.1.102", "name": "Test Node 3"},
-{"ip": "10.0.0.50", "name": "Mock Validator"},
-{"ip": "172.16.0.10", "name": "Example RPC"}
-]'
+# Load environment variables from .env file
+if [ -f ".env" ]; then
+    source .env
+elif [ -f "default.env" ]; then
+    source default.env
+else
+    echo "Error: No .env or default.env file found"
+    exit 1
+fi
+
+# Use MAINNET_ROOT_IPS from .env file
+ROOT_IPS="${MAINNET_ROOT_IPS}"
+
+if [ -z "$ROOT_IPS" ]; then
+    echo "Error: MAINNET_ROOT_IPS not set in .env file"
+    exit 1
+fi
 
 # Loop through IPs
-echo "$FIREWALL_IPS" | jq -c '.[]' | while read -r entry; do
-    ip=$(echo "$entry" | jq -r '.ip')
-    name=$(echo "$entry" | jq -r '.name')
-    echo -e "\n=== Testing $name ($ip) ==="
-    for port in $(seq 4001 4004); do
+echo "$ROOT_IPS" | jq -c '.[]' | while read -r entry; do
+    ip=$(echo "$entry" | jq -r '.Ip')
+    echo -e "\n=== Testing Root IP ($ip) ==="
+    for port in $(seq 4001 4010); do
         if nc -z -w2 "$ip" "$port" 2>/dev/null; then
             echo "Port $port: OPEN"
         else
