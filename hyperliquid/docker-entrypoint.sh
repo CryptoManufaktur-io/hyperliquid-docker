@@ -92,8 +92,8 @@ fi
 
 # Create api_secrets.json for Slack alerts if both SLACK_CHANNEL and SLACK_KEY are provided
 if [ -n "$SLACK_CHANNEL" ] && [ -n "$SLACK_KEY" ]; then
-  local api_secrets_file="$HOME/hl/api_secrets.json"
-  local slack_channel_key="${CHAIN,,}_slack_channel"  # Convert CHAIN to lowercase and append _slack_channel
+  api_secrets_file="$HOME/hl/api_secrets.json"
+  slack_channel_key="${CHAIN,,}_slack_channel"  # Convert CHAIN to lowercase and append _slack_channel
 
   echo "Creating Slack alerts configuration at $api_secrets_file"
 
