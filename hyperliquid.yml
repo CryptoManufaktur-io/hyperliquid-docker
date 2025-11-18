@@ -30,6 +30,8 @@ services:
       - EXTRA_FLAGS=${EXTRA_FLAGS:-}
       - FIREWALL_IPS=${FIREWALL_IPS:-}
       - SENTRY_IPS=${SENTRY_IPS:-}
+      - SLACK_CHANNEL=${SLACK_CHANNEL:-}
+      - SLACK_KEY=${SLACK_KEY:-}
     ports:
       - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/tcp
       - ${P2P_PORT_RANGE:-4000-4010}:${P2P_PORT_RANGE:-4000-4010}/udp
@@ -153,6 +155,8 @@ services:
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
       - RESERVED_PEER_IPS=${RESERVED_PEER_IPS:-}
       - FIREWALL_IPS=${FIREWALL_IPS:-}
+      - SLACK_CHANNEL=${SLACK_CHANNEL:-}
+      - SLACK_KEY=${SLACK_KEY:-}
     volumes:
       - consensus-data:/home/${USERNAME}
     entrypoint:
@@ -233,9 +237,27 @@ services:
         echo "  FIREWALL_IPS: $${FIREWALL_IPS:-<not set>}"
         echo
 
+        # Function to create Slack alerts config (same logic as docker-entrypoint.sh)
+        create_slack_config() {
+          if [ -n "$${SLACK_CHANNEL}" ] && [ -n "$${SLACK_KEY}" ]; then
+            local api_secrets_file="$$HOME/hl/api_secrets.json"
+            local chain_lower=$$(echo "$${CHAIN}" | tr '[:upper:]' '[:lower:]')
+            local slack_channel_key="$${chain_lower}_slack_channel"
+
+            echo "Creating Slack alerts configuration..."
+
+            echo "{\"$${slack_channel_key}\": \"$${SLACK_CHANNEL}\", \"slack_key\": \"$${SLACK_KEY}\"}" > "$$api_secrets_file"
+
+            echo "✅ Successfully created Slack alerts configuration for $${CHAIN}"
+          else
+            echo "ℹ️  Slack alerts not configured (SLACK_CHANNEL or SLACK_KEY not set)"
+          fi
+        }
+
         # Apply configurations
         create_gossip_config
         create_firewall_config
+        create_slack_config
 
         echo
         echo "✅ Configuration sync completed!"
