@@ -117,6 +117,10 @@ docker compose --profile tools run --rm validator-info | jq 'sort_by(-.stake | t
 docker compose --profile tools run --rm validator-info 2>/dev/null | jq '.'
 ```
 
+## Diagnostic & Utility Scripts
+
+This repository includes several diagnostic and utility scripts in the `scripts/` directory for monitoring and managing your Hyperliquid node.
+
 ### Active Validator Set Query
 
 Display the active validator set with formatted output. Shows all validators where `isActive == true`, sorted by stake:
@@ -131,6 +135,12 @@ Display the active validator set with formatted output. Shows all validators whe
 # Query Testnet active set
 ./scripts/check_active_set.sh testnet
 ```
+
+**Features:**
+- Auto-detects network from `.env` or accepts command-line argument
+- Queries the Hyperliquid API for validator summaries
+- Displays active validators sorted by stake with formatted output
+- Shows total validator count and total staked HYPE
 
 **Sample output:**
 ```
@@ -147,6 +157,112 @@ Active Validators (sorted by stake):
 Total Active Validators: 24
 Total Staked: 413,853,515.92 HYPE
 ```
+
+**Prerequisites:** `curl`, `jq`
+
+### Sync Status Check
+
+Monitor your node's synchronization status by comparing local block height against the public RPC endpoint:
+
+```bash
+./scripts/check_sync.sh
+```
+
+**Features:**
+- Auto-detects network (Mainnet/Testnet) from your `.env` configuration
+- Compares local node (`localhost:3001/evm`) with public Hyperliquid RPC
+- Shows how many blocks behind (if any)
+
+**Sample output:**
+```
+Loading environment variables...
+Loaded .env file
+CHAIN is set to: Mainnet
+Local RPC endpoint: http://localhost:3001/evm
+Public RPC endpoint: https://rpc.hyperliquid.xyz/evm
+Mainnet Local node:   12345678
+Mainnet Public head:  12345680
+⚠️  Your node is 2 blocks behind
+```
+
+**Prerequisites:** `curl`, `jq`
+
+### Network Connectivity Check
+
+Test connectivity to Hyperliquid seed peers to diagnose P2P networking issues:
+
+```bash
+./scripts/check_connectivity.sh
+```
+
+**Features:**
+- Uses `MAINNET_ROOT_IPS` from your `.env` configuration
+- Tests ports 4001-4010 for each seed peer IP
+- Reports which ports are open or closed
+
+**Sample output:**
+```
+=== Testing Root IP (1.2.3.4) ===
+Port 4001: OPEN
+Port 4002: OPEN
+Port 4003: CLOSED
+...
+```
+
+**Prerequisites:** `nc` (netcat), `jq`
+
+### Peer Connections Audit
+
+Audit active P2P connections on your running validator node:
+
+```bash
+sudo ./scripts/check_peer_connections.sh
+```
+
+**Features:**
+- Inspects the consensus container's network namespace
+- Shows a table of remote IPs and connection counts per port (4001-4004)
+- Sorted by total connection count
+
+**Sample output:**
+```
+Remote_IP            4001  4002  4003  4004 Total
+--------------------
+1.2.3.4                  2     1     1     2     6
+5.6.7.8                  1     1     1     1     4
+...
+```
+
+**Prerequisites:** `sudo` access, container must be running
+
+**Note:** This script assumes the container is named `hyperliquid-docker-consensus-1`. If your container has a different name, modify the `CID` variable in the script.
+
+### Wallet Transfer Utility
+
+Transfer USDC or HYPE tokens between wallets on Hyperliquid:
+
+```bash
+python3 ./scripts/wallet_transfer.py
+```
+
+**Features:**
+- Auto-installs required Python dependencies (`hyperliquid-python-sdk`, `eth-account`, `eth-utils`)
+- Supports both Mainnet and Testnet
+- Interactive CLI for entering transfer details
+- Comprehensive error handling with balance verification
+- Recipient registration checks
+
+**Interactive prompts:**
+1. Enter your private key (without 0x prefix)
+2. Enter recipient address
+3. Choose token type (USDC or HYPE)
+4. Enter amount to transfer
+5. Select network (Mainnet or Testnet)
+6. Confirm the transfer
+
+**Prerequisites:** Python 3.x, `pip`
+
+**Security note:** This script requires your private key. Only use it on secure, trusted systems. Never share your private key.
 
 ## Node Setup
 
