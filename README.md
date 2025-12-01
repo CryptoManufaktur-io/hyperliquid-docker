@@ -117,6 +117,37 @@ docker compose --profile tools run --rm validator-info | jq 'sort_by(-.stake | t
 docker compose --profile tools run --rm validator-info 2>/dev/null | jq '.'
 ```
 
+### Active Validator Set Query
+
+Display the active validator set with formatted output. Shows all validators where `isActive == true`, sorted by stake:
+
+```bash
+# Use network from .env configuration
+./scripts/check_active_set.sh
+
+# Query Mainnet active set
+./scripts/check_active_set.sh mainnet
+
+# Query Testnet active set
+./scripts/check_active_set.sh testnet
+```
+
+**Sample output:**
+```
+Hyperliquid Active Validator Set
+Network: Mainnet
+API Endpoint: https://api.hyperliquid.xyz/info
+
+Active Validators (sorted by stake):
+
+  1. Hyper Foundation 1                       58,654,386.85 HYPE  0x5ac99...
+  2. Hyper Foundation 4                       58,394,182.48 HYPE  0xdf35a...
+  ...
+
+Total Active Validators: 24
+Total Staked: 413,853,515.92 HYPE
+```
+
 ## Node Setup
 
 When you first start the node, the container will:
