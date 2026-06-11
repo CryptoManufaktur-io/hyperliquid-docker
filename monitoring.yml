@@ -27,7 +27,10 @@ services:
       - --alias=${NODE_ALIAS:-local}
       - --node-home=/home/hyperliquid/hl
       - --node-binary=/home/hyperliquid/hl-node
-      - --validator-rtt
+      - --metrics-port=${MONITORING_PORT:-8086}
+      - --probe-info-endpoint
+      - --info-endpoint-url=http://consensus:3001/info
+      # - --validator-rtt
     depends_on:
       - consensus
     <<: *logging
