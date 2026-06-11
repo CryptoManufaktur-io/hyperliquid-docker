@@ -426,8 +426,7 @@ To visualize the metrics collected:
    Configure Prometheus to scrape metrics from your node's monitoring endpoint.
 
 2. **Import the dashboard:**
-   - Download the pre-configured Grafana dashboard from [hyperliquid-exporter/grafana/grafana.json](https://github.com/validaoxyz/hyperliquid-exporter/blob/main/grafana/grafana.json)
-   - In Grafana, go to Dashboard → Import and upload the JSON file
+   - Create or update a Grafana dashboard from the Prometheus metrics exposed by the monitoring service
    - Select your Prometheus data source
 
 ### Available Metrics
