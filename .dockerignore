@@ -1,12 +1,10 @@
+.git
 .env
+*.log
+
+hyperliquid-data/
+
 validator-publisher/config.json
-validator-publisher/*.local.json
 validator-publisher/logs/
 validator-publisher/state/
 validator-publisher/tmp/
-hyperliquid-data/
-*.crt
-*-dev
-*.swp
-*.swo
-*~
