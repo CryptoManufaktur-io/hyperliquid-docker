@@ -1,0 +1,57 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  validator-publisher:
+    build:
+      context: .
+      dockerfile: validator-publisher/Dockerfile
+      args:
+        - USERNAME=${VALIDATOR_PUBLISHER_USERNAME:-hyperliquid}
+        - VALIDATOR_PUBLISHER_VISOR_URL=${VALIDATOR_PUBLISHER_VISOR_URL:-https://binaries.hyperliquid.xyz/validator-publisher/visor}
+    image: hyperliquid-validator-publisher:local
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      - VALIDATOR_PUBLISHER_AGENT_KEY=${VALIDATOR_PUBLISHER_AGENT_KEY:-}
+      - VALIDATOR_PUBLISHER_RPC_ALCHEMY_URL=${VALIDATOR_PUBLISHER_RPC_ALCHEMY_URL:-}
+      - VALIDATOR_PUBLISHER_RPC_QUICKNODE_URL=${VALIDATOR_PUBLISHER_RPC_QUICKNODE_URL:-}
+      - VALIDATOR_PUBLISHER_RPC_INFURA_URL=${VALIDATOR_PUBLISHER_RPC_INFURA_URL:-}
+      - VALIDATOR_PUBLISHER_RPC_CHAINSTACK_URL=${VALIDATOR_PUBLISHER_RPC_CHAINSTACK_URL:-}
+      - VALIDATOR_PUBLISHER_RPC_ANKR_URL=${VALIDATOR_PUBLISHER_RPC_ANKR_URL:-}
+      - VALIDATOR_PUBLISHER_RPC_DRPC_URL=${VALIDATOR_PUBLISHER_RPC_DRPC_URL:-}
+      - VALIDATOR_PUBLISHER_RPC_SEVENTH_NAME=${VALIDATOR_PUBLISHER_RPC_SEVENTH_NAME:-getblock}
+      - VALIDATOR_PUBLISHER_RPC_SEVENTH_URL=${VALIDATOR_PUBLISHER_RPC_SEVENTH_URL:-}
+      - VALIDATOR_PUBLISHER_ETHERSCAN_API_URL=${VALIDATOR_PUBLISHER_ETHERSCAN_API_URL:-https://api.etherscan.io/v2/api}
+      - VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY=${VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY:-}
+      - VALIDATOR_PUBLISHER_BLOCKSCOUT_URL=${VALIDATOR_PUBLISHER_BLOCKSCOUT_URL:-https://arbitrum.blockscout.com/api}
+      - VALIDATOR_PUBLISHER_SLACK_KEY=${VALIDATOR_PUBLISHER_SLACK_KEY:-}
+      - VALIDATOR_PUBLISHER_SLACK_ERRORS_CHANNEL=${VALIDATOR_PUBLISHER_SLACK_ERRORS_CHANNEL:-}
+      - VALIDATOR_PUBLISHER_SLACK_OUTCOME_ACTIONS_CHANNEL=${VALIDATOR_PUBLISHER_SLACK_OUTCOME_ACTIONS_CHANNEL:-}
+      - VALIDATOR_PUBLISHER_CRIT_MSG_IGNORES=${VALIDATOR_PUBLISHER_CRIT_MSG_IGNORES:-[]}
+    command:
+      - --chain
+      - ${VALIDATOR_PUBLISHER_CHAIN:-Mainnet}
+      - --config-path
+      - /opt/validator-publisher/config/config.json
+      - --log-dir
+      - /opt/validator-publisher/logs
+      - --tmp-dir
+      - /opt/validator-publisher/tmp
+      - --acked-outcome-vote-actions-path
+      - /opt/validator-publisher/state/acked_outcome_vote_actions.json
+    volumes:
+      - validator-publisher-logs:/opt/validator-publisher/logs
+      - validator-publisher-state:/opt/validator-publisher/state
+      - validator-publisher-tmp:/opt/validator-publisher/tmp
+    <<: *logging
+
+volumes:
+  validator-publisher-logs:
+  validator-publisher-state:
+  validator-publisher-tmp:

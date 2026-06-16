@@ -57,6 +57,93 @@ It's designed to work with [central-proxy-docker](https://github.com/CryptoManuf
     ./hld up -d --remove-orphans
     ```
 
+## Validator Publisher
+
+This repository also includes an optional `validator-publisher` compose file for a dedicated publisher host. Do not include it on the validator or sentry hosts. The publisher supports Hyperliquid bridge voting, reference oracle publishing, and outcome action review alerts.
+
+The upstream publisher README is here:
+https://binaries.hyperliquid.xyz/validator-publisher/README.md
+
+### Runtime Requirements
+
+For Mainnet, prepare the following values outside git:
+
+- A validator publisher agent private key approved by the validator.
+- Seven Arbitrum mainnet RPC endpoints named `alchemy`, `quicknode`, `infura`, `chainstack`, `ankr`, `drpc`, and one operator-selected provider such as `getblock`.
+- At least one explorer endpoint. `blockscout` works without an API key, while `etherscan` needs an Etherscan V2 API key and is recommended as a second explorer.
+- A Slack bot bearer token.
+- A Slack channel for runtime errors.
+- A Slack channel for outcome action review.
+
+### Configuration
+
+On a dedicated publisher host, set:
+
+```env
+COMPOSE_FILE=validator-publisher.yml
+VALIDATOR_PUBLISHER_CHAIN=Mainnet
+```
+
+Populate the `VALIDATOR_PUBLISHER_*` variables in `.env`. The publisher container renders its internal `config.json` from these environment variables at startup. No host-mounted `config.json` is required.
+
+For local validation outside Docker, the same config can be rendered with:
+
+```bash
+./scripts/render_validator_publisher_config.sh
+```
+
+The generated `validator-publisher/config.json` contains secrets and is ignored by git.
+
+Variables used by generated config:
+
+```env
+VALIDATOR_PUBLISHER_AGENT_KEY=
+VALIDATOR_PUBLISHER_RPC_ALCHEMY_URL=
+VALIDATOR_PUBLISHER_RPC_QUICKNODE_URL=
+VALIDATOR_PUBLISHER_RPC_INFURA_URL=
+VALIDATOR_PUBLISHER_RPC_CHAINSTACK_URL=
+VALIDATOR_PUBLISHER_RPC_ANKR_URL=
+VALIDATOR_PUBLISHER_RPC_DRPC_URL=
+VALIDATOR_PUBLISHER_RPC_SEVENTH_NAME=getblock
+VALIDATOR_PUBLISHER_RPC_SEVENTH_URL=
+VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY=
+VALIDATOR_PUBLISHER_BLOCKSCOUT_URL=https://arbitrum.blockscout.com/api
+VALIDATOR_PUBLISHER_SLACK_KEY="Bearer xoxb-..."
+VALIDATOR_PUBLISHER_SLACK_ERRORS_CHANNEL=
+VALIDATOR_PUBLISHER_SLACK_OUTCOME_ACTIONS_CHANNEL=
+VALIDATOR_PUBLISHER_CRIT_MSG_IGNORES='[]'
+```
+
+`VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY` is optional if `VALIDATOR_PUBLISHER_BLOCKSCOUT_URL` is set, but two explorers are recommended.
+
+### Run
+
+Build and start the publisher:
+
+```bash
+docker compose -f validator-publisher.yml build --pull
+docker compose -f validator-publisher.yml up -d
+```
+
+Check status and logs:
+
+```bash
+docker compose -f validator-publisher.yml ps
+docker compose -f validator-publisher.yml logs -f validator-publisher
+```
+
+The container runs the official publisher Visor with:
+
+```bash
+--chain Mainnet
+--config-path /opt/validator-publisher/config/config.json
+--log-dir /opt/validator-publisher/logs
+--tmp-dir /opt/validator-publisher/tmp
+--acked-outcome-vote-actions-path /opt/validator-publisher/state/acked_outcome_vote_actions.json
+```
+
+Logs and local state are stored in named Docker volumes. Outcome voting does not submit validator actions directly; it posts candidate outcome deploy and settle actions to Slack for validator review.
+
 ## Tools and Utilities
 
 This setup includes several utility tools for interacting with your Hyperliquid node and the network.
