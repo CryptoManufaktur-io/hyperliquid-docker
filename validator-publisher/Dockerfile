@@ -9,14 +9,16 @@ RUN apt-get update \
 
 RUN useradd --create-home --shell /usr/sbin/nologin "${USERNAME}" \
   && mkdir -p \
+    /opt/validator-publisher/bin \
     /opt/validator-publisher/config \
     /opt/validator-publisher/logs \
     /opt/validator-publisher/state \
     /opt/validator-publisher/tmp \
   && chown -R "${USERNAME}:${USERNAME}" /opt/validator-publisher
 
-RUN curl -fsSL "${VALIDATOR_PUBLISHER_VISOR_URL}" -o /usr/local/bin/validator-publisher-visor \
-  && chmod 0755 /usr/local/bin/validator-publisher-visor
+RUN curl -fsSL "${VALIDATOR_PUBLISHER_VISOR_URL}" -o /opt/validator-publisher/bin/validator-publisher-visor \
+  && chmod 0755 /opt/validator-publisher/bin/validator-publisher-visor \
+  && chown "${USERNAME}:${USERNAME}" /opt/validator-publisher/bin/validator-publisher-visor
 
 COPY validator-publisher/docker-entrypoint.sh /usr/local/bin/validator-publisher-entrypoint.sh
 COPY scripts/render_validator_publisher_config.sh /usr/local/bin/render_validator_publisher_config.sh
