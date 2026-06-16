@@ -4,6 +4,8 @@ validator-publisher/*.local.json
 validator-publisher/logs/
 validator-publisher/state/
 validator-publisher/tmp/
+aqa-publisher/.env
+aqa-publisher/logs/
 hyperliquid-data/
 *.crt
 *-dev

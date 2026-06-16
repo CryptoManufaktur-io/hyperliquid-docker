@@ -144,6 +144,81 @@ The container runs the official publisher Visor with:
 
 Logs and local state are stored in named Docker volumes. Outcome voting does not submit validator actions directly; it posts candidate outcome deploy and settle actions to Slack for validator review.
 
+## AQA Publisher
+
+This repository also includes an optional `aqa-publisher` compose file for publishing the Hyperliquid aligned quote asset rate. The upstream reference implementation is here:
+https://github.com/native-markets/aqa-publisher
+
+Hyperliquid recommends active validators publish the AQA rate once per day at 22:00 UTC from a separate machine from the validating node. It is fine to run this on the same non-validator publisher host as `validator-publisher`.
+
+### Runtime Requirements
+
+Prepare the following values outside git:
+
+- A dedicated AQA publisher agent private key approved by the validator.
+- Network set to `mainnet`.
+
+The AQA publisher image builds the upstream `native-markets/aqa-publisher` source from `v1.2.0`, which upstream currently marks as the supported release. The default service runs `publish_daemon`; tool-profile services are available for `print_current` and `publish_once`.
+
+### Configuration
+
+On a host that runs only AQA publisher, set:
+
+```env
+COMPOSE_FILE=aqa-publisher.yml
+```
+
+On the shared publisher host that runs both publisher sidecars, set:
+
+```env
+COMPOSE_FILE=validator-publisher.yml:aqa-publisher.yml
+```
+
+Populate the AQA variables in `.env`:
+
+```env
+AQA_PUBLISHER_VERSION=v1.2.0
+AQA_PUBLISHER_PRIVATE_KEY=
+AQA_PUBLISHER_NETWORK=mainnet
+AQA_PUBLISHER_RUST_LOG=info
+```
+
+The compose file maps these to the upstream environment variables:
+
+```env
+PUBLISHER_PRIVATE_KEY=${AQA_PUBLISHER_PRIVATE_KEY}
+NETWORK=${AQA_PUBLISHER_NETWORK}
+RUST_LOG=${AQA_PUBLISHER_RUST_LOG}
+```
+
+### Run
+
+Build and start the daemon:
+
+```bash
+docker compose -f aqa-publisher.yml build --pull
+docker compose -f aqa-publisher.yml up -d
+```
+
+Check status and logs:
+
+```bash
+docker compose -f aqa-publisher.yml ps
+docker compose -f aqa-publisher.yml logs -f aqa-publisher
+```
+
+Run the read-only rate check:
+
+```bash
+docker compose -f aqa-publisher.yml --profile tools run --rm aqa-print-current
+```
+
+Run a one-off publish only after the approved AQA publisher key is configured:
+
+```bash
+docker compose -f aqa-publisher.yml --profile tools run --rm aqa-publish-once
+```
+
 ## Tools and Utilities
 
 This setup includes several utility tools for interacting with your Hyperliquid node and the network.

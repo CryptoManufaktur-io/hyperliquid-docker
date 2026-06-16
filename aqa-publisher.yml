@@ -1,0 +1,45 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+x-aqa-publisher-build: &aqa-publisher-build
+  build:
+    context: .
+    dockerfile: aqa-publisher/Dockerfile
+    args:
+      - USERNAME=${AQA_PUBLISHER_USERNAME:-hyperliquid}
+      - AQA_PUBLISHER_VERSION=${AQA_PUBLISHER_VERSION:-v1.2.0}
+  image: hyperliquid-aqa-publisher:local
+  pull_policy: never
+
+x-aqa-publisher-environment: &aqa-publisher-environment
+  environment:
+    - AQA_PUBLISHER_PRIVATE_KEY=${AQA_PUBLISHER_PRIVATE_KEY:-}
+    - AQA_PUBLISHER_NETWORK=${AQA_PUBLISHER_NETWORK:-mainnet}
+    - AQA_PUBLISHER_RUST_LOG=${AQA_PUBLISHER_RUST_LOG:-info}
+    - PUBLISHER_PRIVATE_KEY=${AQA_PUBLISHER_PRIVATE_KEY:-}
+    - NETWORK=${AQA_PUBLISHER_NETWORK:-mainnet}
+    - RUST_LOG=${AQA_PUBLISHER_RUST_LOG:-info}
+
+services:
+  aqa-publisher:
+    <<: [*aqa-publisher-build, *aqa-publisher-environment, *logging]
+    restart: unless-stopped
+    command:
+      - publish_daemon
+
+  aqa-print-current:
+    <<: [*aqa-publisher-build, *aqa-publisher-environment, *logging]
+    profiles: ["tools"]
+    command:
+      - print_current
+
+  aqa-publish-once:
+    <<: [*aqa-publisher-build, *aqa-publisher-environment, *logging]
+    profiles: ["tools"]
+    command:
+      - publish_once
