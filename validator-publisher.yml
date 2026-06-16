@@ -48,10 +48,8 @@ services:
     volumes:
       - validator-publisher-logs:/opt/validator-publisher/logs
       - validator-publisher-state:/opt/validator-publisher/state
-      - validator-publisher-tmp:/opt/validator-publisher/tmp
     <<: *logging
 
 volumes:
   validator-publisher-logs:
   validator-publisher-state:
-  validator-publisher-tmp:

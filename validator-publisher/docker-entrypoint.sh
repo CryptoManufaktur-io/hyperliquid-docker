@@ -5,4 +5,4 @@ set -euo pipefail
 export VALIDATOR_PUBLISHER_CONFIG_PATH
 
 render_validator_publisher_config.sh /dev/null
-exec validator-publisher-visor "$@"
+exec /opt/validator-publisher/bin/validator-publisher-visor "$@"

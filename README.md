@@ -142,7 +142,7 @@ The container runs the official publisher Visor with:
 --acked-outcome-vote-actions-path /opt/validator-publisher/state/acked_outcome_vote_actions.json
 ```
 
-Logs and local state are stored in named Docker volumes. Outcome voting does not submit validator actions directly; it posts candidate outcome deploy and settle actions to Slack for validator review.
+Logs and local state are stored in named Docker volumes. The Visor and downloaded child binaries live under `/opt/validator-publisher/bin`, and temporary files stay under `/opt/validator-publisher/tmp` on the same writable container filesystem so Visor updates can move files atomically. Outcome voting does not submit validator actions directly; it posts candidate outcome deploy and settle actions to Slack for validator review.
 
 ## AQA Publisher
 
