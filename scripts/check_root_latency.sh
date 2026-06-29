@@ -72,8 +72,8 @@ echo "Targets: $TARGET_COUNT | Connects each: $COUNT | Timeout: ${TIMEOUT}s"
 python3 - "$ENTRY_FILE" "$PORT" "$COUNT" "$TIMEOUT" <<'PY'
 import socket, time, sys
 entry_file, port, count, timeout = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), float(sys.argv[4])
-print(f'\n{"Name":38}  {"IP":15}  {"avg µs":>9}  {"min µs":>9}  {"max µs":>9}  {"ok":>6}')
-print(f'{"-"*38}  {"-"*15}  {"-"*9}  {"-"*9}  {"-"*9}  {"-"*6}')
+print(f'\n{"Name":38}  {"IP":15}  {"avg ms":>9}  {"avg µs":>9}  {"min µs":>9}  {"max µs":>9}  {"ok":>6}')
+print(f'{"-"*38}  {"-"*15}  {"-"*9}  {"-"*9}  {"-"*9}  {"-"*9}  {"-"*6}')
 for line in open(entry_file):
     if not line.strip():
         continue
@@ -94,7 +94,7 @@ for line in open(entry_file):
     if ts:
         ts.sort()
         avg = sum(ts) / len(ts)
-        print(f'{name:38.38}  {ip:15}  {avg:9.0f}  {ts[0]:9.0f}  {ts[-1]:9.0f}  {len(ts)}/{count:<4}')
+        print(f'{name:38.38}  {ip:15}  {avg/1000:9.3f}  {avg:9.0f}  {ts[0]:9.0f}  {ts[-1]:9.0f}  {len(ts)}/{count:<4}')
     else:
-        print(f'{name:38.38}  {ip:15}  {"-":>9}  {"-":>9}  {"-":>9}  0/{count:<4}')
+        print(f'{name:38.38}  {ip:15}  {"-":>9}  {"-":>9}  {"-":>9}  {"-":>9}  0/{count:<4}')
 PY
