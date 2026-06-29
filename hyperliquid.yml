@@ -21,6 +21,7 @@ services:
     environment:
       - CHAIN=${CHAIN:-Mainnet}
       - NODE_TYPE=${NODE_TYPE:-non-validator}
+      - SENTRY=${SENTRY:-false}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY:-}
       - ENABLE_EVM_RPC=${ENABLE_EVM_RPC:-false}
@@ -151,6 +152,7 @@ services:
     environment:
       - USERNAME=${USERNAME:-hyperliquid}
       - CHAIN=${CHAIN:-Mainnet}
+      - SENTRY=${SENTRY:-false}
       - MAINNET_ROOT_IPS=${MAINNET_ROOT_IPS:-}
       - TESTNET_ROOT_IPS=${TESTNET_ROOT_IPS:-}
       - RESERVED_PEER_IPS=${RESERVED_PEER_IPS:-}
@@ -254,8 +256,31 @@ services:
           fi
         }
 
+        # Sentry-only: enable split_client_blocks in the gossip override
+        # (same logic as docker-entrypoint.sh). Gated on SENTRY, not NODE_TYPE.
+        apply_sentry_gossip() {
+          if [ "$${SENTRY:-false}" != "true" ]; then
+            return 0
+          fi
+          if [ -f "$$HOME/override_gossip_config.json" ]; then
+            tmp_gossip=$$(mktemp)
+            if jq '. + {split_client_blocks: true}' "$$HOME/override_gossip_config.json" > "$$tmp_gossip"; then
+              mv "$$tmp_gossip" "$$HOME/override_gossip_config.json"
+              echo "✅ Sentry mode: set split_client_blocks=true in override_gossip_config.json"
+            else
+              rm -f "$$tmp_gossip"
+              echo "❌ Error: failed to set split_client_blocks in override_gossip_config.json"
+              return 1
+            fi
+          else
+            echo '{ "split_client_blocks": true }' > "$$HOME/override_gossip_config.json"
+            echo "✅ Sentry mode: created override_gossip_config.json with split_client_blocks=true"
+          fi
+        }
+
         # Apply configurations
         create_gossip_config
+        apply_sentry_gossip
         create_firewall_config
         create_slack_config
 
