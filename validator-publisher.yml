@@ -34,6 +34,9 @@ services:
       - VALIDATOR_PUBLISHER_SLACK_ERRORS_CHANNEL=${VALIDATOR_PUBLISHER_SLACK_ERRORS_CHANNEL:-}
       - VALIDATOR_PUBLISHER_SLACK_OUTCOME_ACTIONS_CHANNEL=${VALIDATOR_PUBLISHER_SLACK_OUTCOME_ACTIONS_CHANNEL:-}
       - VALIDATOR_PUBLISHER_CRIT_MSG_IGNORES=${VALIDATOR_PUBLISHER_CRIT_MSG_IGNORES:-[]}
+      - VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=${VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS:-true}
+      - VALIDATOR_PUBLISHER_FORWARD_LOG_TAIL_LINES=${VALIDATOR_PUBLISHER_FORWARD_LOG_TAIL_LINES:-20}
+      - VALIDATOR_PUBLISHER_LOG_DISCOVERY_INTERVAL=${VALIDATOR_PUBLISHER_LOG_DISCOVERY_INTERVAL:-1}
     command:
       - --chain
       - ${VALIDATOR_PUBLISHER_CHAIN:-Mainnet}
@@ -46,10 +49,8 @@ services:
       - --acked-outcome-vote-actions-path
       - /opt/validator-publisher/state/acked_outcome_vote_actions.json
     volumes:
-      - validator-publisher-logs:/opt/validator-publisher/logs
-      - validator-publisher-state:/opt/validator-publisher/state
+      - validator-publisher:/opt/validator-publisher
     <<: *logging
 
 volumes:
-  validator-publisher-logs:
-  validator-publisher-state:
+  validator-publisher:
