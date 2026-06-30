@@ -4,6 +4,11 @@ set -e
 # Default node type
 : "${NODE_TYPE:=non-validator}"
 
+# Sentry toggle. Set SENTRY=true (via the env file) only on sentry nodes.
+# We gate on SENTRY rather than NODE_TYPE because a validator host is sometimes
+# run as a non-validator, so NODE_TYPE cannot reliably distinguish a sentry.
+: "${SENTRY:=false}"
+
 # Create override_gossip_config.json
 if [ "${CHAIN}" = "Mainnet" ]; then
   if [ -n "$MAINNET_ROOT_IPS" ] && [ "$MAINNET_ROOT_IPS" != "[]" ]; then
@@ -28,6 +33,28 @@ EOF
   else
     echo "Info: Using default peers for CHAIN=Testnet" >&2
     rm -f "$HOME"/override_gossip_config.json
+  fi
+fi
+
+# Sentry-only: enable split_client_blocks in the gossip override.
+# Gated on SENTRY (not NODE_TYPE) so it applies to a sentry even when the host
+# is run as a non-validator. This runs after the gossip config is written above
+# and merges the field in, leaving the existing root_node_ips/peers untouched.
+if [ "$SENTRY" = "true" ]; then
+  if [ -f "$HOME/override_gossip_config.json" ]; then
+    tmp_gossip="$(mktemp)"
+    if jq '. + {split_client_blocks: true}' "$HOME/override_gossip_config.json" > "$tmp_gossip"; then
+      mv "$tmp_gossip" "$HOME/override_gossip_config.json"
+      echo "✅ Sentry mode: set split_client_blocks=true in override_gossip_config.json"
+    else
+      rm -f "$tmp_gossip"
+      echo "❌ Error: failed to set split_client_blocks in override_gossip_config.json" >&2
+      exit 1
+    fi
+  else
+    # No override file (e.g. Testnet using default peers) — create a minimal one.
+    echo '{ "split_client_blocks": true }' > "$HOME/override_gossip_config.json"
+    echo "✅ Sentry mode: created override_gossip_config.json with split_client_blocks=true"
   fi
 fi
 
