@@ -135,7 +135,7 @@ docker compose -f validator-publisher.yml ps
 docker compose -f validator-publisher.yml logs -f validator-publisher
 ```
 
-By default, `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=true` forwards the component files under `/opt/validator-publisher/logs` to container stdout with prefixes such as `[validator-publisher:bridge-voter]`. This keeps `docker compose logs` and Docker log shippers useful while preserving the raw files in the named log volume. Set `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=false` to keep only file-based component logs.
+By default, `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=true` forwards the component files under `/opt/validator-publisher/logs` to container stdout with prefixes such as `[validator-publisher:bridge-voter]`. This keeps `docker compose logs` and Docker log shippers useful while preserving the raw files in the named `validator-publisher` volume. Set `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=false` to keep only file-based component logs.
 
 The container runs the official publisher Visor with:
 
@@ -147,7 +147,9 @@ The container runs the official publisher Visor with:
 --acked-outcome-vote-actions-path /opt/validator-publisher/state/acked_outcome_vote_actions.json
 ```
 
-Logs and local state are stored in named Docker volumes. The Visor and downloaded child binaries live under `/opt/validator-publisher/bin`, and temporary files stay under `/opt/validator-publisher/tmp` on the same writable container filesystem so Visor updates can move files atomically. Outcome voting does not submit validator actions directly; it posts candidate outcome deploy and settle actions to Slack for validator review.
+Logs, local state, temporary files, and downloaded publisher binaries are stored in the named `validator-publisher` Docker volume mounted at `/opt/validator-publisher`. This also persists `bridge-voter-state.json`, the generated runtime config under `/opt/validator-publisher/config`, component logs under `/opt/validator-publisher/logs`, and reference oracle temporary files under `/opt/validator-publisher/tmp`.
+
+Because `/opt/validator-publisher/bin` is also persisted, image rebuilds do not automatically replace binaries already present in that volume. During publisher upgrades, inspect the persisted `bin` directory and clear or refresh it deliberately if a new image should provide fresh binaries. Outcome voting does not submit validator actions directly; it posts candidate outcome deploy and settle actions to Slack for validator review.
 
 ## AQA Publisher
 
