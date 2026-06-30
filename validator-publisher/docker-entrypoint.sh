@@ -43,7 +43,7 @@ forward_component_logs() {
     interval=1
   fi
 
-  # shellcheck disable=SC2329
+  # shellcheck disable=SC2317,SC2329
   cleanup_forwarders() {
     if [[ ${#forwarder_pids[@]} -gt 0 ]]; then
       kill "${forwarder_pids[@]}" 2>/dev/null || true
@@ -92,7 +92,7 @@ log_forwarder_pid="$!"
 /opt/validator-publisher/bin/validator-publisher-visor "$@" &
 visor_pid="$!"
 
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317,SC2329
 terminate() {
   trap - TERM INT
   kill "$visor_pid" "$log_forwarder_pid" 2>/dev/null || true
