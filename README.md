@@ -112,6 +112,9 @@ VALIDATOR_PUBLISHER_SLACK_KEY="Bearer xoxb-..."
 VALIDATOR_PUBLISHER_SLACK_ERRORS_CHANNEL=
 VALIDATOR_PUBLISHER_SLACK_OUTCOME_ACTIONS_CHANNEL=
 VALIDATOR_PUBLISHER_CRIT_MSG_IGNORES='[]'
+VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=true
+VALIDATOR_PUBLISHER_FORWARD_LOG_TAIL_LINES=20
+VALIDATOR_PUBLISHER_LOG_DISCOVERY_INTERVAL=1
 ```
 
 `VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY` is optional if `VALIDATOR_PUBLISHER_BLOCKSCOUT_URL` is set, but two explorers are recommended.
@@ -131,6 +134,8 @@ Check status and logs:
 docker compose -f validator-publisher.yml ps
 docker compose -f validator-publisher.yml logs -f validator-publisher
 ```
+
+By default, `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=true` forwards the component files under `/opt/validator-publisher/logs` to container stdout with prefixes such as `[validator-publisher:bridge-voter]`. This keeps `docker compose logs` and Docker log shippers useful while preserving the raw files in the named log volume. Set `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=false` to keep only file-based component logs.
 
 The container runs the official publisher Visor with:
 
