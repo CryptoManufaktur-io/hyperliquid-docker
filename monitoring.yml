@@ -10,7 +10,9 @@ services:
   monitoring:
     build:
       context: ./monitoring
-    image: hyperliquid-monitoring:local
+      args:
+        MONITORING_EXPORTER_VERSION: ${MONITORING_EXPORTER_VERSION:-v3.1.0}
+    image: hyperliquid-monitoring:${MONITORING_EXPORTER_VERSION:-v3.1.0}
     pull_policy: never
     restart: unless-stopped
     environment:
