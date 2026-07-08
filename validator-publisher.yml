@@ -37,6 +37,9 @@ services:
       - VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=${VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS:-true}
       - VALIDATOR_PUBLISHER_FORWARD_LOG_TAIL_LINES=${VALIDATOR_PUBLISHER_FORWARD_LOG_TAIL_LINES:-20}
       - VALIDATOR_PUBLISHER_LOG_DISCOVERY_INTERVAL=${VALIDATOR_PUBLISHER_LOG_DISCOVERY_INTERVAL:-1}
+      - VALIDATOR_PUBLISHER_PRUNE_FILE_LOGS=${VALIDATOR_PUBLISHER_PRUNE_FILE_LOGS:-true}
+      - VALIDATOR_PUBLISHER_LOG_RETENTION_DAYS=${VALIDATOR_PUBLISHER_LOG_RETENTION_DAYS:-1}
+      - VALIDATOR_PUBLISHER_LOG_PRUNE_INTERVAL=${VALIDATOR_PUBLISHER_LOG_PRUNE_INTERVAL:-21600}
     command:
       - --chain
       - ${VALIDATOR_PUBLISHER_CHAIN:-Mainnet}
@@ -49,8 +52,8 @@ services:
       - --acked-outcome-vote-actions-path
       - /opt/validator-publisher/state/acked_outcome_vote_actions.json
     volumes:
-      - validator-publisher:/opt/validator-publisher
+      - validator-publisher-state:/opt/validator-publisher/state
     <<: *logging
 
 volumes:
-  validator-publisher:
+  validator-publisher-state:

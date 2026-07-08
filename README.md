@@ -115,6 +115,9 @@ VALIDATOR_PUBLISHER_CRIT_MSG_IGNORES='[]'
 VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=true
 VALIDATOR_PUBLISHER_FORWARD_LOG_TAIL_LINES=20
 VALIDATOR_PUBLISHER_LOG_DISCOVERY_INTERVAL=1
+VALIDATOR_PUBLISHER_PRUNE_FILE_LOGS=true
+VALIDATOR_PUBLISHER_LOG_RETENTION_DAYS=1
+VALIDATOR_PUBLISHER_LOG_PRUNE_INTERVAL=21600
 ```
 
 `VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY` is optional if `VALIDATOR_PUBLISHER_BLOCKSCOUT_URL` is set, but two explorers are recommended.
@@ -135,7 +138,9 @@ docker compose -f validator-publisher.yml ps
 docker compose -f validator-publisher.yml logs -f validator-publisher
 ```
 
-By default, `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=true` forwards the component files under `/opt/validator-publisher/logs` to container stdout with prefixes such as `[validator-publisher:bridge-voter]`. This keeps `docker compose logs` and Docker log shippers useful while preserving the raw files in the named `validator-publisher` volume. Set `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=false` to keep only file-based component logs.
+By default, `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=true` forwards the component files under `/opt/validator-publisher/logs` to container stdout with prefixes such as `[validator-publisher:bridge-voter]`. This keeps `docker compose logs` and Docker log shippers useful without persisting a separate raw log volume. Set `VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS=false` to keep only file-based component logs inside the container.
+
+The entrypoint also prunes date-named component log files under `/opt/validator-publisher/logs` when `VALIDATOR_PUBLISHER_PRUNE_FILE_LOGS=true`. By default, it keeps only the current UTC day (`VALIDATOR_PUBLISHER_LOG_RETENTION_DAYS=1`) and runs every six hours (`VALIDATOR_PUBLISHER_LOG_PRUNE_INTERVAL=21600`). The active current-day log file is left in place so the publisher and log forwarder can continue writing and streaming normally.
 
 The container runs the official publisher Visor with:
 
@@ -147,9 +152,9 @@ The container runs the official publisher Visor with:
 --acked-outcome-vote-actions-path /opt/validator-publisher/state/acked_outcome_vote_actions.json
 ```
 
-Logs, local state, temporary files, and downloaded publisher binaries are stored in the named `validator-publisher` Docker volume mounted at `/opt/validator-publisher`. This also persists `bridge-voter-state.json`, the generated runtime config under `/opt/validator-publisher/config`, component logs under `/opt/validator-publisher/logs`, and reference oracle temporary files under `/opt/validator-publisher/tmp`.
+Only acknowledged outcome vote actions are stored in the named `validator-publisher-state` Docker volume mounted at `/opt/validator-publisher/state`. The generated runtime config, component log files, temporary files, downloaded publisher binaries, and root-level `bridge-voter-state.json` stay in the container filesystem. The entrypoint removes `bridge-voter-state.json` at startup so stale bridge-voter transaction state is not carried across restarts.
 
-Because `/opt/validator-publisher/bin` is also persisted, image rebuilds do not automatically replace binaries already present in that volume. During publisher upgrades, inspect the persisted `bin` directory and clear or refresh it deliberately if a new image should provide fresh binaries. Outcome voting does not submit validator actions directly; it posts candidate outcome deploy and settle actions to Slack for validator review.
+On hosts that previously used a root `validator-publisher` volume, preserve `/opt/validator-publisher/state/acked_outcome_vote_actions.json` if it exists, recreate the publisher with the new compose file, then remove the old root volume after confirming the publisher is healthy. Outcome voting does not submit validator actions directly; it posts candidate outcome deploy and settle actions to Slack for validator review.
 
 ## AQA Publisher
 
