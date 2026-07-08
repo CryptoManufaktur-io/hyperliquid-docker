@@ -5,6 +5,9 @@ set -euo pipefail
 : "${VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS:=true}"
 : "${VALIDATOR_PUBLISHER_FORWARD_LOG_TAIL_LINES:=20}"
 : "${VALIDATOR_PUBLISHER_LOG_DISCOVERY_INTERVAL:=1}"
+: "${VALIDATOR_PUBLISHER_PRUNE_FILE_LOGS:=true}"
+: "${VALIDATOR_PUBLISHER_LOG_RETENTION_DAYS:=1}"
+: "${VALIDATOR_PUBLISHER_LOG_PRUNE_INTERVAL:=21600}"
 export VALIDATOR_PUBLISHER_CONFIG_PATH
 
 is_truthy() {
@@ -26,6 +29,56 @@ log_dir_from_args() {
   done
 
   printf '%s\n' "$log_dir"
+}
+
+positive_integer_or_default() {
+  local value="$1"
+  local fallback="$2"
+
+  if [[ "$value" =~ ^[0-9]+$ ]] && ((value > 0)); then
+    printf '%s\n' "$value"
+  else
+    printf '%s\n' "$fallback"
+  fi
+}
+
+prune_component_logs() {
+  local log_dir="$1"
+  local retention_days
+  local cutoff
+
+  retention_days="$(positive_integer_or_default "$2" 1)"
+
+  if ! cutoff="$(date -u -d "$((retention_days - 1)) days ago" +%Y%m%d 2>/dev/null)"; then
+    cutoff="$(date -u +%Y%m%d)"
+  fi
+
+  if [[ -d "$log_dir" ]]; then
+    while IFS= read -r -d '' log_file; do
+      local log_name
+      log_name="$(basename "$log_file")"
+
+      if [[ "$log_name" < "$cutoff" ]]; then
+        rm -f -- "$log_file"
+      fi
+    done < <(find "$log_dir" -mindepth 2 -maxdepth 2 -type f -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]' -print0 2>/dev/null)
+  fi
+}
+
+run_log_pruner() {
+  local log_dir="$1"
+  local retention_days="$2"
+  local interval
+
+  interval="$(positive_integer_or_default "$3" 21600)"
+
+  trap 'exit 0' TERM INT
+
+  while true; do
+    prune_component_logs "$log_dir" "$retention_days"
+    sleep "$interval" &
+    wait "$!" || true
+  done
 }
 
 forward_component_logs() {
@@ -79,13 +132,21 @@ forward_component_logs() {
   done
 }
 
+rm -f /opt/validator-publisher/bridge-voter-state.json
 render_validator_publisher_config.sh /dev/null
+
+log_dir="$(log_dir_from_args "$@")"
+log_pruner_pid=""
+
+if is_truthy "$VALIDATOR_PUBLISHER_PRUNE_FILE_LOGS"; then
+  run_log_pruner "$log_dir" "$VALIDATOR_PUBLISHER_LOG_RETENTION_DAYS" "$VALIDATOR_PUBLISHER_LOG_PRUNE_INTERVAL" &
+  log_pruner_pid="$!"
+fi
 
 if ! is_truthy "$VALIDATOR_PUBLISHER_FORWARD_FILE_LOGS"; then
   exec /opt/validator-publisher/bin/validator-publisher-visor "$@"
 fi
 
-log_dir="$(log_dir_from_args "$@")"
 forward_component_logs "$log_dir" "$VALIDATOR_PUBLISHER_FORWARD_LOG_TAIL_LINES" "$VALIDATOR_PUBLISHER_LOG_DISCOVERY_INTERVAL" &
 log_forwarder_pid="$!"
 
@@ -95,9 +156,12 @@ visor_pid="$!"
 # shellcheck disable=SC2317,SC2329
 terminate() {
   trap - TERM INT
-  kill "$visor_pid" "$log_forwarder_pid" 2>/dev/null || true
+  kill "$visor_pid" "$log_forwarder_pid" ${log_pruner_pid:+"$log_pruner_pid"} 2>/dev/null || true
   wait "$visor_pid" 2>/dev/null || true
   wait "$log_forwarder_pid" 2>/dev/null || true
+  if [[ -n "$log_pruner_pid" ]]; then
+    wait "$log_pruner_pid" 2>/dev/null || true
+  fi
 }
 
 trap terminate TERM INT
@@ -108,7 +172,10 @@ else
   visor_status="$?"
 fi
 
-kill "$log_forwarder_pid" 2>/dev/null || true
+kill "$log_forwarder_pid" ${log_pruner_pid:+"$log_pruner_pid"} 2>/dev/null || true
 wait "$log_forwarder_pid" 2>/dev/null || true
+if [[ -n "$log_pruner_pid" ]]; then
+  wait "$log_pruner_pid" 2>/dev/null || true
+fi
 
 exit "$visor_status"
