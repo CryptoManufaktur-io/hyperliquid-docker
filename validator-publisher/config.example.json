@@ -8,7 +8,8 @@
       },
       {
         "name": "quicknode",
-        "url": "https://YOUR_ENDPOINT.arbitrum-mainnet.quiknode.pro/YOUR_KEY/"
+        "url": "https://YOUR_ENDPOINT.arbitrum-mainnet.quiknode.pro/YOUR_KEY/",
+        "log_discovery": true
       },
       {
         "name": "infura",
@@ -28,7 +29,8 @@
       },
       {
         "name": "getblock",
-        "url": "https://go.getblock.io/YOUR_KEY"
+        "url": "https://go.getblock.io/YOUR_KEY",
+        "log_discovery": true
       }
     ],
     "explorers": [
