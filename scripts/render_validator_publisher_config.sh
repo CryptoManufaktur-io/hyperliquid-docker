@@ -48,6 +48,7 @@ required_vars=(
   VALIDATOR_PUBLISHER_RPC_ANKR_URL
   VALIDATOR_PUBLISHER_RPC_DRPC_URL
   VALIDATOR_PUBLISHER_RPC_SEVENTH_URL
+  VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY
   VALIDATOR_PUBLISHER_SLACK_KEY
   VALIDATOR_PUBLISHER_SLACK_ERRORS_CHANNEL
   VALIDATOR_PUBLISHER_SLACK_OUTCOME_ACTIONS_CHANNEL
@@ -83,6 +84,40 @@ rpcs_json="$(
     ]'
 )"
 
+# Opt selected RPC providers into near-tip eth_getLogs deposit discovery by adding
+# "log_discovery": true. VALIDATOR_PUBLISHER_RPC_LOG_DISCOVERY is a comma-separated
+# list of RPC names (e.g. "galaxy-arbitrum-a,quicknode"). Only enable providers whose
+# plan supports eth_getLogs topic filters over a ~1200-block range.
+log_discovery_names_json="$(
+  jq -n --arg csv "${VALIDATOR_PUBLISHER_RPC_LOG_DISCOVERY:-}" \
+    '$csv | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))'
+)"
+
+# Reject names that do not match any configured RPC provider (catches typos, including
+# a mismatched VALIDATOR_PUBLISHER_RPC_SEVENTH_NAME).
+unknown_ld_names="$(
+  jq -rn \
+    --argjson rpcs "$rpcs_json" \
+    --argjson names "$log_discovery_names_json" \
+    '($rpcs | map(.name)) as $valid
+     | ($names - $valid)
+     | join(", ")'
+)"
+if [ -n "$unknown_ld_names" ]; then
+  echo "Error: VALIDATOR_PUBLISHER_RPC_LOG_DISCOVERY lists unknown RPC name(s): $unknown_ld_names" >&2
+  exit 1
+fi
+
+if [ "$(printf '%s\n' "$log_discovery_names_json" | jq 'length')" -lt 1 ]; then
+  echo "Warning: no RPC has log_discovery enabled; Hyperliquid requires at least one as of the week of 2026-07-27. Set VALIDATOR_PUBLISHER_RPC_LOG_DISCOVERY." >&2
+else
+  rpcs_json="$(
+    printf '%s' "$rpcs_json" \
+      | jq --argjson names "$log_discovery_names_json" \
+          'map(if (.name as $n | $names | index($n)) then . + {"log_discovery": true} else . end)'
+  )"
+fi
+
 explorers_json="$(
   jq -n \
     --arg etherscan_url "$VALIDATOR_PUBLISHER_ETHERSCAN_API_URL" \
@@ -100,6 +135,11 @@ explorers_json="$(
 
 if [ "$(printf '%s\n' "$explorers_json" | jq 'length')" -lt 1 ]; then
   echo "Error: configure at least one explorer endpoint" >&2
+  exit 1
+fi
+
+if [ "$(printf '%s\n' "$explorers_json" | jq '[.[] | select(.name == "etherscan")] | length')" -lt 1 ]; then
+  echo "Error: etherscan explorer is required; set VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY" >&2
   exit 1
 fi
 

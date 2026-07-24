@@ -70,7 +70,8 @@ For Mainnet, prepare the following values outside git:
 
 - A validator publisher agent private key approved by the validator.
 - Seven Arbitrum mainnet RPC endpoints named `alchemy`, `quicknode`, `infura`, `chainstack`, `ankr`, `drpc`, and one operator-selected provider such as `getblock`.
-- At least one explorer endpoint. `blockscout` works without an API key, while `etherscan` needs an Etherscan V2 API key and is recommended as a second explorer.
+- At least one RPC provider opted into near-tip `eth_getLogs` deposit discovery via `VALIDATOR_PUBLISHER_RPC_LOG_DISCOVERY`. Hyperliquid requires this as of the week of 2026-07-27. Only enable it on providers whose plan supports `eth_getLogs` with topic filters over a ~1200-block range.
+- An Etherscan V2 API key. `etherscan` is a **required** explorer; `blockscout` (no API key needed) is recommended as a second explorer for redundancy.
 - A Slack bot bearer token.
 - A Slack channel for runtime errors.
 - A Slack channel for outcome action review.
@@ -106,6 +107,7 @@ VALIDATOR_PUBLISHER_RPC_ANKR_URL=
 VALIDATOR_PUBLISHER_RPC_DRPC_URL=
 VALIDATOR_PUBLISHER_RPC_SEVENTH_NAME=getblock
 VALIDATOR_PUBLISHER_RPC_SEVENTH_URL=
+VALIDATOR_PUBLISHER_RPC_LOG_DISCOVERY=
 VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY=
 VALIDATOR_PUBLISHER_BLOCKSCOUT_URL=https://arbitrum.blockscout.com/api
 VALIDATOR_PUBLISHER_SLACK_KEY="Bearer xoxb-..."
@@ -120,7 +122,9 @@ VALIDATOR_PUBLISHER_LOG_RETENTION_DAYS=1
 VALIDATOR_PUBLISHER_LOG_PRUNE_INTERVAL=21600
 ```
 
-`VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY` is optional if `VALIDATOR_PUBLISHER_BLOCKSCOUT_URL` is set, but two explorers are recommended.
+`VALIDATOR_PUBLISHER_ETHERSCAN_API_KEY` is **required**: the render script fails without it and always emits the `etherscan` explorer. `VALIDATOR_PUBLISHER_BLOCKSCOUT_URL` adds a recommended second explorer for redundancy.
+
+`VALIDATOR_PUBLISHER_RPC_LOG_DISCOVERY` is a comma-separated list of RPC names (matching the names above) that opt into near-tip `eth_getLogs` deposit discovery, adding `"log_discovery": true` to those RPC entries in the generated config. At least one is required as of the week of 2026-07-27. Only list providers whose plan supports `eth_getLogs` with topic filters over a ~1200-block range; a provider that rejects the method only degrades its own health signal. This is distinct from `VALIDATOR_PUBLISHER_LOG_DISCOVERY_INTERVAL`, which controls container log forwarding.
 
 ### Run
 
