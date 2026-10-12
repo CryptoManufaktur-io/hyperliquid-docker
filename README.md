@@ -570,6 +570,8 @@ The setup includes a `pruner` service that automatically removes old blockchain 
 
 The setup includes a monitoring service that collects and exposes metrics for your Hyperliquid node. This helps you track the health and performance of your node.
 
+> Note: `hl-node` itself does not expose a Prometheus endpoint, so the `consensus` service intentionally carries no `metrics.*` labels. Prometheus metrics for the node are provided only by the `monitoring` service below.
+
 ### Enabling Monitoring
 
 1. **Include the monitoring compose file:**

@@ -51,11 +51,9 @@ services:
       - traefik.http.routers.${RPC_HOST}lb.rule=Host(`${RPC_LB}.${DOMAIN}`)
       - traefik.http.routers.${RPC_HOST}lb.tls.certresolver=letsencrypt
       - traefik.http.services.${RPC_HOST}.loadbalancer.server.port=${EVM_RPC_PORT}
-      - metrics.scrape=true
-      - metrics.path=/metrics
-      - metrics.port=${EVM_RPC_PORT}
-      - metrics.instance=${RPC_HOST}
-      - metrics.network=${CHAIN}
+      # No metrics.* labels on purpose: hl-node has no Prometheus endpoint (its HTTP port
+      # serves only the EVM JSON-RPC on /evm, plus /info when --serve-info is set).
+      # Scrapable metrics come from the optional monitoring.yml exporter, which has its own labels.
 
   pruner:
     build:
