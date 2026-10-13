@@ -1,4 +1,7 @@
 .env
+.env.bak
+.env.bak-*
+.env.save
 validator-publisher/config.json
 validator-publisher/*.local.json
 validator-publisher/logs/
