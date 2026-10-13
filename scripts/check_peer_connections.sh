@@ -5,8 +5,11 @@
 # Usage: check_peer_connections.sh
 # --------------------------------------------------------------------
 
-CID=hyperliquid-docker-consensus-1
+# Container of the consensus service in this compose project, unless CONSENSUS_CONTAINER overrides it
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
+CID="${CONSENSUS_CONTAINER:-$(docker compose ps -q consensus 2>/dev/null | head -n1)}"
 PORTS="4001 4002 4003 4004"
+[ -n "$CID" ] || { echo "Consensus container not found"; exit 1; }
 PID=$(docker inspect -f '{{.State.Pid}}' "$CID" 2>/dev/null) || {
   echo "Container $CID not found"; exit 1;
 }

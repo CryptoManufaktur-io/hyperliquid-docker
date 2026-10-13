@@ -15,7 +15,7 @@ if [ "${CHAIN}" = "Mainnet" ]; then
     # Prepare reserved_peer_ips array
     RESERVED_PEERS="${RESERVED_PEER_IPS:-[]}"
     cat > "$HOME/override_gossip_config.json" <<EOF
-{ "root_node_ips": ${MAINNET_ROOT_IPS}, "try_new_peers": false, "chain": "Mainnet", "reserved_peer_ips": ${RESERVED_PEERS} }
+{ "root_node_ips": ${MAINNET_ROOT_IPS}, "try_new_peers": ${TRY_NEW_PEERS:-false}, "chain": "Mainnet", "reserved_peer_ips": ${RESERVED_PEERS} }
 EOF
   else
     echo "Error: MAINNET_ROOT_IPS must be set and non-empty when CHAIN=Mainnet" >&2
@@ -28,7 +28,7 @@ if [ "${CHAIN}" = "Testnet" ]; then
     # Prepare reserved_peer_ips array
     RESERVED_PEERS="${RESERVED_PEER_IPS:-[]}"
     cat > "$HOME/override_gossip_config.json" <<EOF
-{ "root_node_ips": ${TESTNET_ROOT_IPS}, "try_new_peers": false, "chain": "Testnet", "reserved_peer_ips": ${RESERVED_PEERS} }
+{ "root_node_ips": ${TESTNET_ROOT_IPS}, "try_new_peers": ${TRY_NEW_PEERS:-false}, "chain": "Testnet", "reserved_peer_ips": ${RESERVED_PEERS} }
 EOF
   else
     echo "Info: Using default peers for CHAIN=Testnet" >&2
