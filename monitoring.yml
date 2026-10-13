@@ -30,8 +30,10 @@ services:
       - --node-home=/home/hyperliquid/hl
       - --node-binary=/home/hyperliquid/hl-node
       - --metrics-port=${MONITORING_PORT:-8086}
-      - --probe-info-endpoint
-      - --info-endpoint-url=http://consensus:3001/info
+      # Active /info probe (hl_info_* metrics). Only enable when the node runs with
+      # --serve-info in EXTRA_FLAGS; otherwise /info returns 404 and hl_info_endpoint_up stays 0.
+      - --probe-info-endpoint=${MONITORING_PROBE_INFO_ENDPOINT:-false}
+      - --info-endpoint-url=http://consensus:${EVM_RPC_PORT:-3001}/info
       # - --validator-rtt
     depends_on:
       - consensus

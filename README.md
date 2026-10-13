@@ -568,61 +568,67 @@ The setup includes a `pruner` service that automatically removes old blockchain 
 
 ## Monitoring
 
-The setup includes a monitoring service that collects and exposes metrics for your Hyperliquid node. This helps you track the health and performance of your node.
+`hl-node` has no Prometheus endpoint (its HTTP port, `EVM_RPC_PORT`, serves only the EVM JSON-RPC on `/evm`, plus `/info` when `--serve-info` is set), so the `consensus` service intentionally carries no `metrics.*` labels. Prometheus metrics come from the optional `monitoring` service ([validaoxyz/hyperliquid-exporter](https://github.com/validaoxyz/hyperliquid-exporter), `hl_exporter`, built from source and pinned by `MONITORING_EXPORTER_VERSION`).
+
+The exporter needs **no node flag change and no node restart**. It mounts the node's data volume read-only and derives metrics from files `hl-node` already writes (`data/node_fast_block_times`, `data/node_slow_block_times`, `data/tcp_traffic`, `data/node_logs/gossip_*`, `data/visor_abci_states`, `data/crit_msg_stats`, ...), so it works on non-validator RPC nodes started with only `--replica-cmds-style recent-actions --serve-eth-rpc`. It tails these files from the end, so metrics appear after it has been running a few seconds.
 
 ### Enabling Monitoring
 
-1. **Include the monitoring compose file:**
-   Ensure that `:monitoring.yml` is included in your `COMPOSE_FILE` setting in the `.env` file:
+1. **Include the monitoring compose file** in `COMPOSE_FILE` in `.env` (keep `ext-network.yml` in the list on Traefik/Prometheus-discovery hosts so that the exporter has a single network, the external Traefik network, which is what Docker service discovery requires):
    ```env
-   COMPOSE_FILE=hyperliquid.yml:monitoring.yml
+   COMPOSE_FILE=hyperliquid.yml:ext-network.yml:monitoring.yml
    ```
 
-2. **Configure monitoring settings:**
-   In your `.env` file, set the following parameters:
+2. **Configure monitoring settings** in `.env`:
    ```env
-   NODE_ALIAS=your-node-name     # A descriptive name for your node
-   MONITORING_PORT=8086          # The port on which metrics will be exposed
-   LOG_LEVEL=info                # Log level for the monitoring service
+   NODE_ALIAS=your-node-name           # A descriptive name for your node
+   MONITORING_PORT=8086                # Container port the metrics are served on
+   LOG_LEVEL=info                      # Log level for the monitoring service
+   MONITORING_PROBE_INFO_ENDPOINT=false  # true ONLY if EXTRA_FLAGS has --serve-info (see below)
    ```
 
-3. **Start the monitoring service:**
-   When you run `./hld up -d`, the monitoring service will start automatically.
+3. **Build and start only the monitoring service.** On a running node use `--no-deps` so that Compose does not reconcile (and possibly recreate, i.e. restart) `consensus`:
+   ```bash
+   docker compose build monitoring
+   docker compose up -d --no-deps monitoring
+   ```
+   On a fresh install `./hld up -d` starts it together with the node.
+
+`MONITORING_PROBE_INFO_ENDPOINT=true` makes the exporter POST to the node's `/info` endpoint and export `hl_info_*` (including `hl_info_endpoint_up`). The node serves `/info` only with `--serve-info` in `EXTRA_FLAGS`; without that flag `/info` returns 404 and the probe would report `hl_info_endpoint_up == 0` forever, so it is off by default.
 
 ### Accessing Metrics
 
-The monitoring service exposes Prometheus metrics on port 8086 (or your configured `MONITORING_PORT`). You can access these metrics at:
-```
-http://your-server-ip:8086/metrics
-```
+The monitoring service exposes Prometheus metrics on `MONITORING_PORT` (default 8086) at `/metrics`, on the container network only (`expose`, no host port). From the host, `curl http://<container-ip>:8086/metrics`. The service carries the `metrics.*` labels (`metrics.scrape`, `metrics.port`, `metrics.path`, `metrics.instance`, `metrics.network`) used by the central-proxy-docker / Prometheus Docker service discovery, which keeps only the first network of a container.
+
+### Useful signals
+
+These were checked against real node data (non-validator RPC node):
+
+| Question | Metric / query |
+|---|---|
+| Is the exporter reading the node? | `hl_exporter_ready == 1`, `hl_exporter_monitor_last_tick_seconds{monitor="block"}` |
+| Is the node following the chain (block freshness)? | `timestamp(hl_core_latest_block_time) - hl_core_latest_block_time` (seconds behind; use `timestamp()` rather than `time()` to ignore scrape delay) |
+| Is the node producing/applying blocks? | `increase(hl_core_block_height[5m])` (about 14 blocks/s, so about 4000 per 5m; 0 means stalled) |
+| Block apply time | `hl_metal_apply_duration_milliseconds_*`, `hl_core_block_time_milliseconds_*` (histograms, `state_type` fast/slow) |
+| Visor state sync | `hl_visor_reference_lag_seconds`, `hl_visor_last_observation_age_seconds` |
+| Peers / traffic | `hl_p2p_peers`, `hl_p2p_sample_age_seconds`, `hl_node_parent_peer_*` |
+| Crashes / criticals | `hl_node_child_crashes{reason}`, `hl_node_crits`, `hl_node_replay_events` |
+| Disk | `hl_node_disk_free_bytes / hl_node_disk_total_bytes`, `hl_node_disk_subdir_bytes{subdir}` |
+| Exporter source errors | `increase(hl_exporter_monitor_errors_total[15m])` |
+
+Suggested alerts: block freshness above 30s for 2m; `increase(hl_core_block_height[5m]) == 0`; `absent(hl_core_latest_block_time)`; `up{job="monitoring"} == 0`.
+
+**Metrics that are not meaningful in this layout** (the exporter runs in its own container, so `/proc` shows neither the node processes nor its sockets): `hl_node_process_*` (e.g. `hl_node_process_up` is always 0) and `hl_p2p_tcp_connections`. Do not alert on them; use cAdvisor container metrics for CPU/memory/restarts of `hyperliquid-consensus-1`. Consensus/validator-only families (`hl_consensus_*`, validator latency) stay at 0 or absent on non-validator nodes, and `hl_core_hardfork_version` reads 0 with v3.1.0.
+
+### Other signals without the exporter
+
+* **RPC probe:** `POST /evm` `eth_blockNumber` (compare against the public RPC, see `scripts/check_sync.sh`) and `eth_syncing`; `net_peerCount` is not implemented by `hl-node`.
+* **cAdvisor:** container presence, restarts, CPU and memory of `hyperliquid-consensus-1` (already scraped on the hosts).
+* **Logs:** `applied block N` lines in `docker logs` of `consensus` (about every 7 seconds per 100 blocks) show the node is streaming live.
 
 ### Visualizing Metrics with Grafana
 
-To visualize the metrics collected:
-
-1. **Set up Prometheus:**
-   Configure Prometheus to scrape metrics from your node's monitoring endpoint.
-
-2. **Import the dashboard:**
-   - Create or update a Grafana dashboard from the Prometheus metrics exposed by the monitoring service
-   - Select your Prometheus data source
-
-### Available Metrics
-
-The monitoring service collects various metrics, including:
-
-* **Block metrics:** Height, time, lag, proposer statistics
-* **Node status:** Software version, sync status
-* **Validator metrics:** Status, jailing information, stake distribution
-* **EVM metrics:** Transaction throughput and performance
-
-### Integration with Existing Monitoring Stack
-
-If you're using [central-proxy-docker](https://github.com/CryptoManufaktur-io/central-proxy-docker), the monitoring service is automatically configured for discovery through the `metrics.*` labels.
-
-### External Monitoring Services
-
-A sample public dashboard is available at [ValiDAO Hyperliquid Testnet Monitor](https://hyperliquid-testnet-monitor.validao.xyz/public-dashboards/ff0fbe53299b4f95bb6e9651826b26e0).
+Create a Grafana dashboard from the metrics above and select your Prometheus data source. A sample public dashboard is available at [ValiDAO Hyperliquid Testnet Monitor](https://hyperliquid-testnet-monitor.validao.xyz/public-dashboards/ff0fbe53299b4f95bb6e9651826b26e0).
 
 ## Traefik Integration
 
