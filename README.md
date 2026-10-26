@@ -22,6 +22,7 @@ It's designed to work with [central-proxy-docker](https://github.com/CryptoManuf
     *   `MAINNET_ROOT_IPS`: JSON array of seed peer IPs for Mainnet.
     *   `TESTNET_ROOT_IPS`: JSON array of seed peer IPs for Testnet.
     *   `EXTRA_FLAGS`: Additional command-line flags for hl-visor.
+    *   `VISOR_AUTO_UPDATE`: Refresh `hl-visor` on container start when the published build differs (default: `true`).
 
 2.  **Expose EVM RPC Port (Optional):**
     The node's P2P ports are always exposed on the host machine by default via `hyperliquid.yml`. If you also need the node's EVM RPC port exposed directly on your host machine, include `:rpc-shared.yml` in the `COMPOSE_FILE` list:
@@ -448,6 +449,7 @@ When you first start the node, the container will:
 *   **Initialize the node** based on the `CHAIN` variable ("Mainnet" or "Testnet").
 *   **Configure the appropriate peers** based on `MAINNET_ROOT_IPS` for Mainnet or `TESTNET_ROOT_IPS` for Testnet.
 *   **Download and verify the hl-visor binary** using the official GPG key from `PUB_KEY_URL`.
+*   **Keep hl-visor current:** the visor is stored in the data volume, so rebuilding the image does not update it. On every container start the entrypoint downloads the published `hl-visor`, verifies its signature against the same key, and replaces the installed one if it differs (the previous copy is kept as `~/hl-visor.previous`). If the download or verification fails, the installed visor is kept and the node still starts. An outdated visor cannot install newer `hl-node` releases, so the node cannot read the network's current state and stops syncing. Set `VISOR_AUTO_UPDATE=false` to pin the visor.
 *   If `NODE_TYPE` is set to "validator", a node configuration file will be created with the provided private key. You can generate a private key using `openssl rand -hex 32` if needed. The system will automatically display the corresponding public address during startup.
 
 ### Firewall Configuration for Validators
