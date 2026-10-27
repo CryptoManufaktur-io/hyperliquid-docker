@@ -133,6 +133,47 @@ else
   echo "ℹ️  Slack alerts not configured (SLACK_CHANNEL or SLACK_KEY not set)"
 fi
 
+# Refresh hl-visor from the official binary host when the published build differs.
+# The visor lives in the persistent data volume, so the copy baked into the image at build
+# time is shadowed and never updated by rebuilding. An outdated visor cannot install newer
+# hl-node releases, and the node then cannot read the network's current state.
+# The download is GPG-verified against the key imported at build time; on any failure the
+# installed visor is kept and the node still starts.
+refresh_visor() {
+  if [ "${VISOR_AUTO_UPDATE:-true}" != "true" ]; then
+    echo "ℹ️  hl-visor auto-update disabled (VISOR_AUTO_UPDATE=${VISOR_AUTO_UPDATE})"
+    return 0
+  fi
+
+  local prefix tmp
+  if [ "${CHAIN}" = "Testnet" ]; then
+    prefix="https://binaries.hyperliquid-testnet.xyz/Testnet"
+  else
+    prefix="https://binaries.hyperliquid.xyz/Mainnet"
+  fi
+
+  tmp="$(mktemp -d)"
+  if curl -fsSL --max-time 300 -o "$tmp/hl-visor" "$prefix/hl-visor" \
+     && curl -fsSL --max-time 60 -o "$tmp/hl-visor.asc" "$prefix/hl-visor.asc" \
+     && gpg --verify "$tmp/hl-visor.asc" "$tmp/hl-visor" >/dev/null 2>&1; then
+    if [ -f "$HOME/hl-visor" ] && cmp -s "$tmp/hl-visor" "$HOME/hl-visor"; then
+      echo "✅ hl-visor is already the published build"
+    else
+      [ -f "$HOME/hl-visor" ] && cp -p "$HOME/hl-visor" "$HOME/hl-visor.previous"
+      chmod +x "$tmp/hl-visor"
+      # mv within the same filesystem is atomic; copy first so the move stays on the volume.
+      cp "$tmp/hl-visor" "$HOME/hl-visor.new" && mv -f "$HOME/hl-visor.new" "$HOME/hl-visor"
+      cp "$tmp/hl-visor.asc" "$HOME/hl-visor.asc"
+      echo "✅ Updated hl-visor to the published build (previous kept as hl-visor.previous)"
+    fi
+  else
+    echo "⚠️  Could not download and verify the published hl-visor; keeping the installed one" >&2
+  fi
+  rm -rf "$tmp"
+}
+
+refresh_visor
+
 # Base run command
 CMD="$HOME/hl-visor run-$NODE_TYPE"
 
