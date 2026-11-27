@@ -1,0 +1,76 @@
+# Optional eRPC proxy in front of the node's HTTP JSON-RPC. Enable it by adding :erpc.yml to COMPOSE_FILE
+# (after hyperliquid.yml and ext-network.yml).
+#
+# Why: hl-node rejects JSON-RPC batches of more than 20 requests ("Exceeded max limit of 20"), but clients such
+# as Chainlink send batches of 25 to 250. eRPC splits an incoming batch into parallel single requests, merges the
+# answers in the original order and passes `null` results through unchanged.
+#
+# How it plugs in: the proxy gets its own Traefik routers for the same hosts with a higher priority, so traffic
+# for RPC_HOST and RPC_LB goes to the proxy and /evm is rewritten to the proxy's project path. Rollback is
+# complete when you remove :erpc.yml from COMPOSE_FILE and run `./hld up -d --remove-orphans`.
+#
+# Known differences from talking to the node directly: web3_clientVersion reports eRPC, eth_blockNumber can lag
+# the node by a few blocks (eth_getBlockByNumber latest is exact), and the JSON-RPC error code for "intrinsic gas
+# too low" is -32003 instead of -32000 (the message is unchanged).
+services:
+  consensus:
+    networks:
+      default:
+        aliases:
+          - ${RPC_HOST}-node
+
+  erpc:
+    image: ghcr.io/erpc/erpc:${ERPC_TAG:-0.5.0}
+    restart: unless-stopped
+    stop_grace_period: 30s
+    configs:
+      - source: erpc-config
+        target: /erpc.yaml
+    labels:
+      - traefik.enable=true
+      - traefik.http.middlewares.${RPC_HOST}-erpc-path.replacepathregex.regex=^/evm/?$$
+      - traefik.http.middlewares.${RPC_HOST}-erpc-path.replacepathregex.replacement=/main/evm/${ERPC_CHAIN_ID:-999}
+      - traefik.http.routers.${RPC_HOST}-erpc.service=${RPC_HOST}-erpc
+      - traefik.http.routers.${RPC_HOST}-erpc.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST}-erpc.rule=Host(`${RPC_HOST}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST}-erpc.priority=1000
+      - traefik.http.routers.${RPC_HOST}-erpc.middlewares=${RPC_HOST}-erpc-path
+      - traefik.http.routers.${RPC_HOST}-erpc.tls.certresolver=letsencrypt
+      - traefik.http.routers.${RPC_HOST}lb-erpc.service=${RPC_HOST}-erpc
+      - traefik.http.routers.${RPC_HOST}lb-erpc.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST}lb-erpc.rule=Host(`${RPC_LB}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST}lb-erpc.priority=1000
+      - traefik.http.routers.${RPC_HOST}lb-erpc.middlewares=${RPC_HOST}-erpc-path
+      - traefik.http.routers.${RPC_HOST}lb-erpc.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST}-erpc.loadbalancer.server.port=4000
+
+configs:
+  erpc-config:
+    content: |
+      logLevel: warn
+      server:
+        httpHostV4: "0.0.0.0"
+        httpPortV4: 4000
+        maxTimeout: 60s
+      metrics:
+        enabled: false
+      database:
+        evmJsonRpcCache: ~
+      projects:
+        - id: main
+          upstreams:
+            - id: node
+              type: evm
+              endpoint: "http://${RPC_HOST}-node:${EVM_RPC_PORT:-3001}/evm"
+              evm:
+                chainId: ${ERPC_CHAIN_ID:-999}
+          networks:
+            - architecture: evm
+              evm:
+                chainId: ${ERPC_CHAIN_ID:-999}
+              failsafe:
+                - matchMethod: "*"
+                  timeout:
+                    duration: 30s
+                  retry:
+                    maxAttempts: 1

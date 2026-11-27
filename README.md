@@ -58,6 +58,20 @@ It's designed to work with [central-proxy-docker](https://github.com/CryptoManuf
     ./hld up -d --remove-orphans
     ```
 
+## Optional: eRPC proxy for large JSON-RPC batches
+
+`hl-node` rejects JSON-RPC batches of more than 20 requests (`Exceeded max limit of 20`). Clients such as Chainlink send batches of 25 to 250. `erpc.yml` adds an [eRPC](https://github.com/erpc/erpc) proxy in front of the node's HTTP JSON-RPC: an incoming batch is split into parallel single requests and the answers are returned together in the original order. `null` results (for example a receipt for an unknown hash) are passed through unchanged.
+
+1.  Add `erpc.yml` to `COMPOSE_FILE` after `hyperliquid.yml` and `ext-network.yml`, for example:
+    ```env
+    COMPOSE_FILE=hyperliquid.yml:ext-network.yml:erpc.yml
+    ```
+2.  Pin the image with `ERPC_TAG` and set `ERPC_CHAIN_ID` (`999` for Mainnet, `998` for Testnet). Then run `./hld up -d`.
+
+The proxy has its own Traefik routers for `RPC_HOST` and `RPC_LB` with a higher priority than the node's routers, and rewrites `/evm` to the proxy's project path. To roll back, remove `:erpc.yml` from `COMPOSE_FILE` and run `./hld up -d --remove-orphans`.
+
+Differences from talking to the node directly: `web3_clientVersion` reports eRPC, `eth_blockNumber` can lag the node by a few blocks (`eth_getBlockByNumber` with `latest` is exact), and the error code for "intrinsic gas too low" is `-32003` instead of `-32000` (the message is unchanged).
+
 ## Validator Publisher
 
 This repository also includes an optional `validator-publisher` compose file for a dedicated publisher host. Do not include it on the validator or sentry hosts. The publisher supports Hyperliquid bridge voting, reference oracle publishing, and outcome action review alerts.
